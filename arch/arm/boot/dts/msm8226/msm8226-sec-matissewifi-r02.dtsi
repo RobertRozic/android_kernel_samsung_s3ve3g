@@ -355,7 +355,6 @@
 			status = "disable";
 			/* Charger */
 			battery,charger_name = "smb358";
-			battery,vbus_ctrl_gpio = <&msmgpio 64 0x00>;
 			battery,chg_gpio_en = <0>;
 			battery,chg_polarity_en = <0>;
 			battery,chg_gpio_status = <0>;

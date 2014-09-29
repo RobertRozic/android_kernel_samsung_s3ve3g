@@ -10,9 +10,21 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8226-camera-sensor-mtp-millet_eur-r02.dtsi"
-/include/ "msm8226-tsu6721_hestia.dtsi"
-/include/ "dsi_panel_magna_octa_720p_video_revA.dtsi"
+/include/ "msm8226-camera-sensor-mtp-atlantic_eur.dtsi"
+/include/ "dsi_panel_magna_octa_720p_video_kmini_00.dtsi"
+
+&rpm_bus {
+	rpm-regulator-ldoa15 {
+		status = "okay";
+		pm8226_l15: regulator-l15 {
+			regulator-name = "8226_l15";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			qcom,init-voltage = <3300000>;
+			status = "okay";
+		};
+	};
+};
 
 &soc {
 	serial@f991f000 {
@@ -48,6 +60,29 @@
 		};
 	};/*CONFIG_SND_SOC_MAX98504*/
 
+	 i2c@15{ /*SM5502 MUIC Chip node*/
+		 /*Driver file: drviers/misc/sm5502.c*/
+		 /*CONFIG_SM5502_MUIC*/
+                cell-index = <15>;
+                compatible = "i2c-gpio";
+                gpios = <&msmgpio 4 0  /*SDA*/
+                        &msmgpio 5 0  /*SCL*/
+			>;
+                i2c-gpio,delay-us = <2>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                sm5502@25{
+                        compatible = "sm5502,i2c";
+                        reg = <0x25>;
+                        interrupt-parent = <&msmgpio>;
+                        interrupts= <52 0>;
+                        sm5502,irq-gpio = <&msmgpio 52 0x00>;
+                        sm5502,gpio-sda = <&msmgpio 4 0x00>;
+                        sm5502,gpio-scl = <&msmgpio 5 0x00>;
+                        sm5502,uarton-gpio = <&msmgpio 109 0x00>;
+                };
+        };
+
 	i2c@19 {
 		cell-index = <19>;
 		compatible = "i2c-gpio";
@@ -74,8 +109,8 @@
        };
 
 	i2c@22 { /*MC96FR332/MC96FR116 IRDA Controller IC node*/
-		 /*Drvier file: drivers/irda/ir_remote_con_mc96.c*/
-		 /*CONFIG_IR_REMOCON_MC96*/
+		 /*Drvier file: drivers/irda/irda_common_ldo.c*/
+		 /*CONFIG_IRDA_COMMON_LDO*/
 		cell-index = <22>;
                 compatible = "i2c-gpio";
                 gpios = <&msmgpio 22 0 /* sda */
@@ -89,51 +124,32 @@
 			compatible = "mc96fr332,i2c";
                         reg = <0x50>;
                         interrupt-parent = <&msmgpio>;
-                        vled_ic_1.9v-supply = <&pm8226_l27>;
-                        interrupts = <49 0>;
-			mc96fr332,irda_irq_gpio = <&msmgpio 49 0x00>;
-                        mc96fr332,irda_wake = <&msmgpio 56 0x00>;
-			mc96fr332,irda_led_en = <&msmgpio 114 0x00>;
+                        vled_3.3v-supply = <&pm8226_l15>;
+                        interrupts = <56 0>;
+			mc96fr332,irda_irq_gpio = <&msmgpio 56 0x00>;
+                        mc96fr332,irda_wake = <&msmgpio 49 0x00>;
+			mc96fr332,irda_poweron = <&msmgpio 114 0x00>;
 			mc96fr332,scl-gpio = <&msmgpio 23 0x00>;
 			mc96fr332,sda-gpio = <&msmgpio 22 0x00>;
 		};
 
-		cypress_touchkey@20 {
-			compatible = "cypress,cypress-tkey";
+		touchkey@20{
+			compatible = "abov,mc96ft16xx";
 			reg = <0x20>;
 			interrupt-parent = <&msmgpio>;
 			interrupts = <31 0>;
-			vcc_en-supply = <&pm8226_l6>;
-			cypress,sda-gpio = <&msmgpio 22 0>;
-			cypress,scl-gpio = <&msmgpio 23 0>;
-			cypress,irq-gpio = <&msmgpio 31 0>;
-			cypress,touchkey_id-gpio = <&msmgpio 120 0>;			
-			cypress,tkey-keycodes = <254 158>;
-			cypress,i2c-pull-up = <1>;
+			abov,sda-gpio = <&msmgpio 22 0>;
+			abov,scl-gpio = <&msmgpio 23 0>;
+			abov,irq-gpio = <&msmgpio 31 0>;
+			abov,rst-gpio = <&msmgpio 38 0>;
+			abov,tkey_en-gpio = <&msmgpio 110 0>;
+			vddo-supply = <&pm8226_l6>;
+			avdd-supply = <&pm8226_l19>;
 		};
 
 		svc_leds@30{
 			compatible = "leds,ktd2026";
 			reg = <0x30>;
-		};
-	};
-
-	i2c@f9923000 { /* BLSP1 QUP1 */
-		compatible = "qcom,i2c-qup";
-		qcom,scl-gpio = <&msmgpio 3 0>;
-		qcom,sda-gpio = <&msmgpio 2 0>;
-		tmd3782@39 {
-			compatible = "taos,tmd3782";
-			reg = <0x39>;
-			interrupt-parent = <&msmgpio>;
-			interrupts = <65 0>;
-			taos,i2c-pull-up = <1>;
-			taos,reg_vdd = "8226_l19";
-			taos,reg_vio = "8226_lvs1";
-			taos,reg_ldo = "8226_l15";
-			taos,irq_gpio = <&msmgpio 65 0x1>;
-			taos,en = <&pm8226_gpios 3 0x1>;
-			status = "okay";
 		};
 	};
 
@@ -193,7 +209,6 @@
 			taos,prox_cal_path = "/efs/prox_cal";
 			taos,vdd_2p85 = "8226_l19";
 			taos,vdd_1p8 = "8226_lvs1";
-			taos,leda_3p3 = "8226_l15";
 		};
 	};
 	i2c@f9925000 {
@@ -206,7 +221,6 @@
 			interrupts = <63 0>;
 			adpd142,irq_gpio = <&msmgpio 63 0>;
 			adpd142,vdd_1p8 = "8226_l6";
-			adpd142,leda_3p3 = "8226_l15";
 		};
 		sec-nfc@27 {
 			compatible = "sec-nfc";
@@ -222,25 +236,63 @@
 	};
 
 	i2c@20 {
-		status="disabled";
+		cell-index = <20>;
+		compatible = "i2c-gpio";
+		gpios = <&msmgpio 34 0 /* sda */
+			&msmgpio 33 0 /* scl */>;
+
+		actuator0: qcom,actuator@50 {
+			compatible = "qcom,actuator";
+			cell-index = <0>;
+			reg = <0x50>;
+		};
+		actuator1: qcom,actuator@36 {
+			compatible = "qcom,actuator";
+			cell-index = <1>;
+			reg = <0x36>;
+		};
 	};
 
 	i2c@f9927000{ /* BLSP1 QUP5 Hardware ID BLSP5 */
 		compatible = "qcom,i2c-qup";
 		qcom,scl-gpio = <&msmgpio 19 0>;
 		qcom,sda-gpio = <&msmgpio 18 0>;
-		mms300_ts@48 {
-				compatible = "melfas,mms-ts";
-				reg = <0x48>; /*slave address*/
-				interrupt-parent = <&msmgpio>;
-				interrupts = <17 0>; /* Touch int gpio */
-				vcc_i2c = <&pm8226_lvs1>;
-				vdd_en-gpio = <&pm8226_gpios 6 0x01>; /*Touch En 1 gpio*/
-				melfas,irq-gpio = <&msmgpio 17 0x00>; /*TSP IRQ GPIO */
-				melfas,panel-coords = <0  0 800 1280>;
-				melfas,config_fw_version = "melfas mms300";
-				melfas,i2c-pull-up = <1>;			
-		};
+		cyt_tsp@24 {
+				compatible = "cy,cyttsp5_i2c_adapter";
+				reg = <0x24>; /*slave address*/
+				cy,adapter_id = "cyttsp5_i2c_adapter";
+
+				cy,core {
+					cy,name = "cyttsp5_core";
+					cy,irq_gpio = <17>;
+					cy,hid_desc_register = <1>;
+					tsp,avdd-gpio = <&pm8226_gpios 6 0x01>; /*Touch En 1 gpio*/
+					vddo-supply = <&pm8226_lvs1>;/*not sure if needed, just in case*/
+					cy,mt {
+						cy,name = "cyttsp5_mt";
+						cy,inp_dev_name = "sec_touchscreen";
+						cy,abs =
+							/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
+							<0x35 0 720 0 0
+							/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
+							0x36 0 1280 0 0
+							/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
+							0x3a 0 255 0 0
+							/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
+							0xffff 0 255 0 0
+							/* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
+							0x39 0 15 0 0
+							/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+							0x30 0 255 0 0
+							/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+							0x31 0 255 0 0
+							/* ABS_MT_ORIENTATION, -128, 127, 0, 0 */
+							0x34 0xfffffed7 127 0 0
+							/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+							0x37 0 1 0 0>;
+					};
+				};
+			};
 	};
 
 	gpio_keys {
@@ -604,13 +656,6 @@
 	};
 
 	gpio@c500 { /* GPIO 6 */
-		qcom,mode = <1>;                /* Digital output */
-		qcom,output-type = <0>; /* CMOS logic */
-		qcom,pull = <5>;                /* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <3>;             /* QPNP_PIN_VIN2 */
-		qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
-		qcom,src-sel = <2>;             /* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;
 	};
 
 	gpio@c600 { /* GPIO 7 */

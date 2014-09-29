@@ -11,8 +11,7 @@
  */
 
 /include/ "msm8226-camera-sensor-mtp-millet_eur-r02.dtsi"
-/include/ "msm8226-tsu6721_hestia.dtsi"
-/include/ "dsi_panel_magna_octa_720p_video_revA.dtsi"
+/include/ "dsi_panel_magna_octa_720p_video_kmini_01.dtsi"
 
 &soc {
 	serial@f991f000 {
@@ -47,6 +46,63 @@
 			max98504,i2c-pull-up;
 		};
 	};/*CONFIG_SND_SOC_MAX98504*/
+
+	 i2c@15{ /*TSU6721 MUIC Chip node*/
+		 /*Driver file: drviers/misc/tsu6721.c*/
+		 /*CONFIG_TSU6721_MUIC*/
+                cell-index = <15>;
+                compatible = "i2c-gpio";
+                gpios = <&msmgpio 4 0  /*SDA*/
+                        &msmgpio 5 0  /*SCL*/
+			>;
+                i2c-gpio,delay-us = <2>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                tsu6721@25{
+                        compatible = "tsu6721,i2c";
+                        reg = <0x25>;
+                        interrupt-parent = <&msmgpio>;
+                        interrupts= <52 0>;
+                        tsu6721,irq-gpio = <&msmgpio 52 0x00>;
+                        tsu6721,gpio-sda = <&msmgpio 4 0x00>;
+                        tsu6721,gpio-scl = <&msmgpio 5 0x00>;
+                        tsu6721,uarton-gpio = <&msmgpio 109 0x00>;
+                };
+        };
+
+/*	Node for GPIO expander
+	defconfig:CONFIG_GPIO_PCAL6416A
+	driver file location:drivers/gpio/gpio-pcal6416a.c
+*/
+	i2c@16 {
+                cell-index = <16>;
+                compatible = "i2c-gpio";
+
+                gpios = <&msmgpio 0 0      /*SDA*/
+                        &msmgpio 1 0       /*SCL*/
+                        >;
+
+                i2c-gpio,delay-us = <2>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                expander_gpios: pcal6416a@20 {
+                        compatible = "pcal6416a,gpio-expander";
+                        gpio-controller;
+                        #gpio-cells = <2>;
+                        reg = <0x20>;
+			pcal6416a,supply-name = "8226_l6";
+                        pcal6416a,gpio_start = <300>;
+                        pcal6416a,ngpio = <16>;
+                        pcal6416a,reset-gpio = <&pm8226_gpios 6 0x00>;
+                        pcal6416a,support_initialize = <0>;
+                        /* config, 15 ~ 0, 1bit configure[1:input, 0:output]*/
+                        pcal6416a,config = <0x2008>;    /* 0010 0000 0000 1000 */
+                        /* data_out, 15 ~ 0, 1bit configure[1:high, 0:low]*/
+                        pcal6416a,data_out = <0x4482>;  /* 0100 0100 1000 0010  */
+                        /* pull_reg, 31 ~ 0, 2bit configure[00:no_pull, 01:pull_down, 10:pull_up, 11:not used]*/
+                        pcal6416a,pull_reg = <0x00000000>; /* 00 00 00 00 / 00 00 00 00 /  00 00 00 00 / 00 00 00 00 */
+                };
+        };
 
 	i2c@19 {
 		cell-index = <19>;
@@ -98,18 +154,18 @@
 			mc96fr332,sda-gpio = <&msmgpio 22 0x00>;
 		};
 
-		cypress_touchkey@20 {
-			compatible = "cypress,cypress-tkey";
+		touchkey@20{
+			compatible = "abov,mc96ft16xx";
 			reg = <0x20>;
 			interrupt-parent = <&msmgpio>;
 			interrupts = <31 0>;
-			vcc_en-supply = <&pm8226_l6>;
-			cypress,sda-gpio = <&msmgpio 22 0>;
-			cypress,scl-gpio = <&msmgpio 23 0>;
-			cypress,irq-gpio = <&msmgpio 31 0>;
-			cypress,touchkey_id-gpio = <&msmgpio 120 0>;			
-			cypress,tkey-keycodes = <254 158>;
-			cypress,i2c-pull-up = <1>;
+			abov,sda-gpio = <&msmgpio 22 0>;
+			abov,scl-gpio = <&msmgpio 23 0>;
+			abov,irq-gpio = <&msmgpio 31 0>;
+			abov,rst-gpio = <&expander_gpios 13 0>;
+			abov,tkey_en-gpio = <&expander_gpios 5 0>;
+			vddo-supply = <&pm8226_l6>;
+			avdd-supply = <&pm8226_l19>;
 		};
 
 		svc_leds@30{
@@ -198,6 +254,8 @@
 	};
 	i2c@f9925000 {
 		compatible = "qcom,i2c-qup";
+		qcom,scl-gpio = <&msmgpio 11 0>;
+		qcom,sda-gpio = <&msmgpio 10 0>;
 		status = "okay";
 		adpd142@64 {
 			compatible = "adpd142";
@@ -229,18 +287,42 @@
 		compatible = "qcom,i2c-qup";
 		qcom,scl-gpio = <&msmgpio 19 0>;
 		qcom,sda-gpio = <&msmgpio 18 0>;
-		mms300_ts@48 {
-				compatible = "melfas,mms-ts";
-				reg = <0x48>; /*slave address*/
-				interrupt-parent = <&msmgpio>;
-				interrupts = <17 0>; /* Touch int gpio */
-				vcc_i2c = <&pm8226_lvs1>;
-				vdd_en-gpio = <&pm8226_gpios 6 0x01>; /*Touch En 1 gpio*/
-				melfas,irq-gpio = <&msmgpio 17 0x00>; /*TSP IRQ GPIO */
-				melfas,panel-coords = <0  0 800 1280>;
-				melfas,config_fw_version = "melfas mms300";
-				melfas,i2c-pull-up = <1>;			
-		};
+		cyt_tsp@24 {
+				compatible = "cy,cyttsp5_i2c_adapter";
+				reg = <0x24>; /*slave address*/
+				cy,adapter_id = "cyttsp5_i2c_adapter";
+
+				cy,core {
+					cy,name = "cyttsp5_core";
+					cy,irq_gpio = <17>;
+					cy,hid_desc_register = <1>;
+					tsp,avdd-gpio = <&expander_gpios 8 0x01>; /*Touch En 1 gpio*/
+					vddo-supply = <&pm8226_lvs1>;/*not sure if needed, just in case*/
+					cy,mt {
+						cy,name = "cyttsp5_mt";
+						cy,inp_dev_name = "sec_touchscreen";
+						cy,abs =
+							/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
+							<0x35 0 720 0 0
+							/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
+							0x36 0 1280 0 0
+							/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
+							0x3a 0 255 0 0
+							/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
+							0xffff 0 255 0 0
+							/* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
+							0x39 0 15 0 0
+							/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+							0x30 0 255 0 0
+							/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+							0x31 0 255 0 0
+							/* ABS_MT_ORIENTATION, -128, 127, 0, 0 */
+							0x34 0xfffffed7 127 0 0
+							/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+							0x37 0 1 0 0>;
+					};
+				};
+			};
 	};
 
 	gpio_keys {
@@ -248,7 +330,6 @@
 		input-name = "gpio-keys";
 		vddo-supply = <&pm8226_l6>;
 		vddo-voltage = <1800>;
-
 
 		home_key {
 			label = "home_key";
@@ -364,7 +445,7 @@
 		battery,temp_high_recovery_lpm = <450>;
 		battery,temp_low_threshold_lpm = <(-50)>;
 		battery,temp_low_recovery_lpm = <0>;
-		battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */ 
+		battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 		battery,full_check_type_2nd = <3>; /* SEC_BATTERY_FULLCHARGED_TIME */
 		battery,full_check_count = <1>;
 		battery,chg_gpio_full_check = <0>;
@@ -604,13 +685,6 @@
 	};
 
 	gpio@c500 { /* GPIO 6 */
-		qcom,mode = <1>;                /* Digital output */
-		qcom,output-type = <0>; /* CMOS logic */
-		qcom,pull = <5>;                /* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <3>;             /* QPNP_PIN_VIN2 */
-		qcom,out-strength = <3>;/* QPNP_PIN_OUT_STRENGTH_HIGH */
-		qcom,src-sel = <2>;             /* QPNP_PIN_SEL_FUNC_1 */
-		qcom,master-en = <1>;
 	};
 
 	gpio@c600 { /* GPIO 7 */

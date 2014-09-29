@@ -17,7 +17,7 @@
 		cell-index = <0>;
 		compatible = "qcom,camera-led-flash";
 		qcom,flash-type = <1>;
-		qcom,flash-source = <&pm8226_flash0>;
+		qcom,flash-source = <&pm8226_flash0 &pm8226_flash1>;
 		qcom,torch-source = <&pm8226_torch>;
 	};
 
@@ -83,9 +83,7 @@
 		cam_vaf-supply = <&pm8226_l28>;
 		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vaf";
 		qcom,cam-vreg-type = <0 0 0>;
-		qcom,cam-vreg-min-voltage = <1225000 0 2800000>;
-		qcom,cam-vreg-max-voltage = <1225000 0 2800000>;
-		qcom,cam-vreg-op-mode = <1225000 0 2800000>;
+		qcom,cam-vreg-op-mode = <1225000 1800000 2800000>;
 		qcom,gpio-no-mux = <0>;
 		gpios = <&msmgpio 26 0>,
 			<&msmgpio 37 0>,
@@ -106,20 +104,18 @@
 		qcom,csiphy-sd-index = <1>;
 		qcom,csid-sd-index = <1>;
 		cam_vio-supply = <&pm8226_l27>;
-		qcom,cam-vreg-name = "cam_vdig", "cam_vio";
-		qcom,cam-vreg-type = <1 0>;
-		qcom,cam-vreg-min-voltage = <0 1800000>;
-		qcom,cam-vreg-max-voltage = <0 1800000>;
-		qcom,cam-vreg-op-mode = <0 1800000>;
+		qcom,cam-vreg-name = "cam_vdig", "cam_vana", "cam_vio";
+		qcom,cam-vreg-type = <1 1 0>;
+		qcom,cam-vreg-op-mode = <0 0 1800000>;
 		qcom,gpio-no-mux = <0>;
 		gpios = <&msmgpio 27 0>,
 			<&msmgpio 28 0>,
 			<&msmgpio 112 0>;
-		qcom,gpio-vt-reset = <1>;
-		qcom,gpio-ext-vana-power = <2>;
 		qcom,gpio-req-tbl-num = <0 1 2>;
 		qcom,gpio-req-tbl-flags = <1 0 0>;
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK", "CAM_VT_RESET", "CAM_VANA_GPIO";
+		qcom,gpio-vt-reset = <1>;
+		qcom,gpio-ext-vana-power = <2>;
 		qcom,cci-master = <0>;
 		status = "ok";
 	};

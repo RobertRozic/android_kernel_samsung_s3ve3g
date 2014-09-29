@@ -160,8 +160,8 @@
 			"MIC BIAS1 External", "Handset Mic",
 			"AMIC2", "MIC BIAS2 External",
 			"MIC BIAS2 External", "Headset Mic",
-			"AMIC3", "MIC BIAS1 External",
-			"MIC BIAS1 External", "Sub Mic",
+			"AMIC3", "MIC BIAS3 External",
+			"MIC BIAS3 External", "Sub Mic",
 			"AMIC4", "MIC BIAS2 External",
 			"MIC BIAS2 External", "ANCRight Headset Mic",
 			"AMIC5", "MIC BIAS2 External",
@@ -280,7 +280,7 @@
 	qcom,hsusb-otg-mode = <3>;
 	vbus_otg-supply = <&pm8226_chg_otg>;
 	qcom,hsusb-otg-phy-init-seq =
-			<0x44 0x80 0x5A 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
+			<0x44 0x80 0x6F 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
 };
 
 &sdcc1 {
@@ -703,9 +703,9 @@
 &slim_msm {
 	tapan_codec {
 		qcom,cdc-micbias1-ext-cap;
-		qcom,cdc-micbias-cfilt1-mv = <1800>;
+		qcom,cdc-micbias-cfilt1-mv = <2800>;
 		qcom,cdc-micbias-cfilt2-mv = <2800>;
-		qcom,cdc-micbias-cfilt3-mv = <1800>;
+		qcom,cdc-micbias-cfilt3-mv = <2800>;
 	};
 };
 

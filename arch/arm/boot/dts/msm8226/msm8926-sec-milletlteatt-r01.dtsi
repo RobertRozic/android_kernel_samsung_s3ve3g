@@ -308,7 +308,7 @@
 		compatible = "samsung,sec-battery";
 		battery,vendor = "SDI SDI";
 		battery,charger_name = "smb358";
-		battery,fuelgauge_name = "sec-fuelgauge";
+		battery,fuelgauge_name = "bms";
 		battery,technology = <2>; /* POWER_SUPPLY_TECHNOLOGY_LION */
 		battery,ta_int = <&msmgpio 119 0x1>;
 		battery,ta_irq_attr = <0x3>;

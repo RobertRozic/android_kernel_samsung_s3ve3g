@@ -150,9 +150,9 @@
 						 <&det_zones 975 10000 10 0>,
 						 <&det_zones 1679 10000 10 1>,
 						 <&det_zones 9999 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 100>,
-						 <&but_zones 1 101 250>,
-						 <&but_zones 2 251 645>;
+		but-zones-list = <&but_zones 0 0 162>,
+						 <&but_zones 1 163 325>,
+						 <&but_zones 2 326 645>;
 		mpp-channel-scaling = <2 1 3>;
 	};	
 };

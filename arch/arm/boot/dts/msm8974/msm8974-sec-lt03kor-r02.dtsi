@@ -463,7 +463,7 @@
 		SEC_BATTERY_FULL_CONDITION_VCELL */
 		battery,full_condition_type = <13>;
 		battery,full_condition_soc = <97>;
-		battery,full_condition_vcell = <4250>;
+		battery,full_condition_vcell = <4300>;
 		battery,recharge_check_count = <2>;
 		/* SEC_BATTERY_RECHARGE_CONDITION_VCELL |
 		SEC_BATTERY_RECHARGE_CONDITION_AVGVCELL */
@@ -484,7 +484,7 @@
 			battery,chg_polarity_en = <0>;
 			battery,chg_gpio_status = <0>;
 			battery,chg_polarity_status = <0>;
-			battery,chg_float_voltage = <4360>;
+			battery,chg_float_voltage = <4350>;
 			battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 			battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 

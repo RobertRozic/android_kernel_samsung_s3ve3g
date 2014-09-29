@@ -12,9 +12,9 @@
 
 /dts-v1/;
 
-/include/ "msm8610-sec.dtsi"
+/include/ "msm8610-sec-kanas3g-chn-cmcc.dtsi"
 /include/ "msm8610-v1-pm.dtsi"
-/include/ "msm8610-sec-kanas3g-chn-cmcc-r02.dtsi"
+/include/ "msm8610-sec-kanas3g-chn-cu-r02.dtsi"
 /include/ "msm8610-camera-sensor-kanas3g-chn-r00.dtsi"
 /include/ "sec-backlight-rt4502.dtsi"
 
