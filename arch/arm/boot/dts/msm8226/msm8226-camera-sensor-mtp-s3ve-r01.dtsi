@@ -86,7 +86,7 @@
 						  "sensor_vreg";
 			qcom,cam-power-seq-val = "cam_vdig", "cam_vio";
 			qcom,cam-power-seq-cfg-val = <1 1>;
-			qcom,cam-power-seq-delay = <1 1>;
+			qcom,cam-power-seq-delay = <2 2>;
 
 			qcom,spiop-read = <0x03 3 0 0 0>;
 			qcom,spiop-readseq = <0x03 3 0 0 0>;
