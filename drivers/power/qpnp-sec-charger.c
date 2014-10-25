@@ -6619,7 +6619,7 @@ static void sec_bat_polling_alarm_expired(struct alarm *alarm)
 }
 
 #endif
-#if defined(CONFIG_MACH_MS01_LTE)
+//#if defined(CONFIG_MACH_MS01_LTE)
 static struct qpnp_chg_chip    * chg_chip;
 void change_boost_control(int on)
 {
@@ -6639,7 +6639,7 @@ void change_boost_control(int on)
 	}
 
 }
-#endif
+//#endif
 static int __devinit
 qpnp_charger_probe(struct spmi_device *spmi)
 {
