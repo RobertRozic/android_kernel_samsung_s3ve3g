@@ -157,6 +157,14 @@ config IMX135
 		snapshot config = 4208 x 3120 at 24 fps,
 		Video HDR support.
 
+config S5K4H5YB
+	bool "Sensor S5K4H5YB"
+	depends on MSMB_CAMERA
+
+config S5K6A3YX
+	bool "Sensor S5K6A3YX"
+	depends on MSMB_CAMERA
+
 config S5K6B2YX
 	bool "Sensor S5K6B2YX (BAYER 2MP)"
 	depends on MSMB_CAMERA
