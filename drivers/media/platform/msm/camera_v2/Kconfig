@@ -139,7 +139,7 @@ config SR200PC20
 	---help---
 	  Siliconfile 2.0MP sensor,
 	  Front sensor.
-	  
+
 config S5K4ECGX
 	bool "Sensor for rear camera"
 	depends on MSMB_CAMERA
@@ -156,6 +156,14 @@ config IMX135
 		4 mipi lanes, preview config = 2104 x 1560 at 49 fps,
 		snapshot config = 4208 x 3120 at 24 fps,
 		Video HDR support.
+
+config S5K3H5XA
+	bool "Sensor S5K3H5XA"
+	depends on MSMB_CAMERA
+
+config S5K4H5YA
+	bool "Sensor S5K4H5YA"
+	depends on MSMB_CAMERA
 
 config S5K4H5YB
 	bool "Sensor S5K4H5YB"
