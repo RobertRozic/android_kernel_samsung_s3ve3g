@@ -1,5 +1,5 @@
 /*
-  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
   *
   * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
   *
@@ -18,6 +18,7 @@
   * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
   * PERFORMANCE OF THIS SOFTWARE.
 */
+
 /*
  * DO NOT EDIT - This file is generated automatically
  */
@@ -256,7 +257,7 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"MAX_BA_SESSIONS",
     (unsigned char *)"BA_AUTO_SETUP",
     (unsigned char *)"ADDBA_REQ_DECLINE",
-    (unsigned char *)"DEL_ALL_RX_BA_SESSIONS_2_4_G_BTC",
+    (unsigned char *)"DEL_ALL_RX_TX_BA_SESSIONS_2_4_G_BTC",
     (unsigned char *)"BG_SCAN_CHANNEL_LIST",
     (unsigned char *)"MAX_MEDIUM_TIME",
     (unsigned char *)"MAX_MPDUS_IN_AMPDU",
@@ -331,9 +332,35 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"TDLS_PUAPSD_INACT_TIME",
     (unsigned char *)"TDLS_RX_FRAME_THRESHOLD",
     (unsigned char *)"ENABLE_ADAPT_RX_DRAIN",
-    (unsigned char *)"OXYGEN_NETWORK_DATA",
     (unsigned char *)"FLEX_CONNECT_POWER_FACTOR",
     (unsigned char *)"ANTENNA_DIVESITY",
+    (unsigned char *)"ATH_DISABLE",
+    (unsigned char *)"BTC_ACTIVE_WLAN_LEN",
+    (unsigned char *)"BTC_ACTIVE_BT_LEN",
+    (unsigned char *)"BTC_SAP_ACTIVE_WLAN_LEN",
+    (unsigned char *)"BTC_SAP_ACTIVE_BT_LEN",
+    (unsigned char *)"DEBUG_P2P_REMAIN_ON_CHANNEL",
+    (unsigned char *)"GO_LINK_MONITOR_TIMEOUT",
+    (unsigned char *)"CHANNEL_BONDING_24G",
+    (unsigned char *)"OBSS_HT40_SCAN_PASSIVE_DWELL_TIME",
+    (unsigned char *)"OBSS_HT40_SCAN_ACTIVE_DWELL_TIME",
+    (unsigned char *)"OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL",
+    (unsigned char *)"OBSS_HT40_SCAN_PASSIVE_TOTAL_PER_CHANNEL",
+    (unsigned char *)"OBSS_HT40_SCAN_ACTIVE_TOTAL_PER_CHANNEL",
+    (unsigned char *)"OBSS_HT40_WIDTH_CHANNEL_TRANSITION_DELAY_FACTOR",
+    (unsigned char *)"OBSS_HT40_SCAN_ACTIVITY_THRESHOLD",
+    (unsigned char *)"TDLS_OFF_CHANNEL_ENABLED",
+    (unsigned char *)"RA_FILTER_ENABLE",
+    (unsigned char *)"RA_RATE_LIMIT_INTERVAL",
+    (unsigned char *)"BTC_CTS2S_DURING_SCO",
+    (unsigned char *)"PMF_SA_QUERY_MAX_RETRIES",
+    (unsigned char *)"PMF_SA_QUERY_RETRY_INTERVAL",
+    (unsigned char *)"BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE",
+    (unsigned char *)"BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE",
+    (unsigned char *)"BTC_DYN_A2DP_TX_QUEUE_THOLD",
+    (unsigned char *)"BTC_DYN_OPP_TX_QUEUE_THOLD",
+    (unsigned char *)"TDLS_WMM_MODE_ENABLED",
+    (unsigned char *)"BURST_MODE_BE_TXOP_VALUE",
 };
 
 

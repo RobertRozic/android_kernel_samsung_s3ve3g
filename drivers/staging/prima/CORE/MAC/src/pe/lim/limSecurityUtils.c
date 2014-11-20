@@ -1075,9 +1075,18 @@ tANI_U32 val = 0;
       }else {
           /*This case the keys are coming from upper layer so need to fill the 
           * key at the default wep key index and send to the HAL */
+          if (defWEPIdx >= SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS)
+          {
+             limLog( pMac, LOGE, FL("WEPIdx length %d more than "
+                                    "the Max limit, reset to Max"),defWEPIdx);
+             vos_mem_free (pSetStaKeyParams);
+             return;
+          }
           vos_mem_copy((tANI_U8 *) &pSetStaKeyParams->key[defWEPIdx],
-                             (tANI_U8 *) &pMlmSetKeysReq->key[0], sizeof( pMlmSetKeysReq->key[0] ));
+                                (tANI_U8 *) &pMlmSetKeysReq->key[0],
+                                  sizeof( pMlmSetKeysReq->key[0] ));
           pMlmSetKeysReq->numKeys = SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS;
+
       }
       break;
   case eSIR_ED_TKIP:
@@ -1299,7 +1308,7 @@ tSirRetStatus      retCode;
 end:
   if (pRemoveStaKeyParams)
   {
-    palFreeMemory(pMac->hHdd, pRemoveStaKeyParams);
+    vos_mem_free(pRemoveStaKeyParams);
   }
   limPostSmeRemoveKeyCnf( pMac,
       psessionEntry,

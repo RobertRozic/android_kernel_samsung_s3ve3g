@@ -1,5 +1,5 @@
 /*
-  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
   *
   * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
   *
@@ -19,7 +19,7 @@
   * PERFORMANCE OF THIS SOFTWARE.
 */
 /*
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2014 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
  *
@@ -56,8 +56,9 @@ static tBeaconFilterIe beaconFilterTable[] = {
    {SIR_MAC_EDCA_PARAM_SET_EID,  0, {0, 0, EDCA_FILTER_MASK,      0}},
    {SIR_MAC_QOS_CAPABILITY_EID,  0, {0, 0, QOS_FILTER_MASK,       0}},
    {SIR_MAC_CHNL_SWITCH_ANN_EID, 1, {0, 0, 0,                     0}},
-   {SIR_MAC_HT_INFO_EID,         0, {0, 0, HT_BYTE0_FILTER_MASK,  0}},  
-   {SIR_MAC_HT_INFO_EID,         0, {2, 0, HT_BYTE2_FILTER_MASK,  0}}, 
+   {SIR_MAC_HT_INFO_EID,         0, {0, 0, HT_BYTE0_FILTER_MASK,  0}}, //primary channel
+   {SIR_MAC_HT_INFO_EID,         0, {1, 0, HT_BYTE1_FILTER_MASK,  0}}, //Secondary Channel
+   {SIR_MAC_HT_INFO_EID,         0, {2, 0, HT_BYTE2_FILTER_MASK,  0}}, //HT  protection
    {SIR_MAC_HT_INFO_EID,         0, {5, 0, HT_BYTE5_FILTER_MASK,  0}}
 #if defined WLAN_FEATURE_VOWIFI
    ,{SIR_MAC_PWR_CONSTRAINT_EID,  0, {0, 0, 0, 0}}
@@ -251,7 +252,12 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
 #endif
     vos_mem_copy(  pChnlParams->bssId, pSessionEntry->bssId, sizeof(tSirMacAddr) );
     pChnlParams->peSessionId = peSessionId;
-    
+
+    if (LIM_SWITCH_CHANNEL_CSA == pSessionEntry->channelChangeCSA )
+    {
+        pChnlParams->channelSwitchSrc =  eHAL_CHANNEL_SWITCH_SOURCE_CSA;
+        pSessionEntry->channelChangeCSA = 0;
+    }
     //we need to defer the message until we get the response back from WDA.
     SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
     msgQ.type = WDA_CHNL_SWITCH_REQ;
@@ -268,6 +274,8 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
         pChnlParams->secondaryChannelOffset, pChnlParams->channelNumber, pChnlParams->localPowerConstraint);)
 #endif
     MTRACE(macTraceMsgTx(pMac, peSessionId, msgQ.type));
+    limLog(pMac,LOG1,"SessionId:%d WDA_CHNL_SWITCH_REQ for SSID:%s",peSessionId,
+            pSessionEntry->ssId.ssId);
     if( eSIR_SUCCESS != (retCode = wdaPostCtrlMsg( pMac, &msgQ )))
     {
         vos_mem_free(pChnlParams);
@@ -597,6 +605,134 @@ tSirRetStatus limSendSetTxPowerReq(tpAniSirGlobal pMac,  tANI_U32 *pMsgBuf)
         vos_mem_free(txPowerReq);
         return retCode;
     }
+    return retCode;
+}
+
+/** ---------------------------------------------------------
+\fn      limSendHT40OBSSScanInd
+\brief   LIM sends a WDA_HT40_OBSS_SCAN_IND message to WDA
+\param   tpAniSirGlobal      pMac
+\param   psessionEntry  session Entry
+\return  None
+  -----------------------------------------------------------*/
+tSirRetStatus limSendHT40OBSSScanInd(tpAniSirGlobal pMac,
+                                               tpPESession psessionEntry)
+{
+    tSirRetStatus           retCode = eSIR_SUCCESS;
+    tSirHT40OBSSScanInd    *ht40OBSSScanInd;
+    tANI_U32                validChannelNum;
+    tSirMsgQ             msgQ;
+    tANI_U8              validChanList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
+    tANI_U8              channel24GNum, count;
+
+    ht40OBSSScanInd = vos_mem_malloc(sizeof(tSirHT40OBSSScanInd));
+    if ( NULL == ht40OBSSScanInd)
+    {
+        return eSIR_FAILURE;
+    }
+
+    VOS_TRACE(VOS_MODULE_ID_PE,VOS_TRACE_LEVEL_INFO,
+             "OBSS Scan Indication bssIdx- %d staId %d",
+             psessionEntry->bssIdx, psessionEntry->staId);
+
+    ht40OBSSScanInd->cmdType = HT40_OBSS_SCAN_PARAM_START;
+    ht40OBSSScanInd->scanType = eSIR_ACTIVE_SCAN;
+    ht40OBSSScanInd->OBSSScanPassiveDwellTime =
+           psessionEntry->obssHT40ScanParam.OBSSScanPassiveDwellTime;
+    ht40OBSSScanInd->OBSSScanActiveDwellTime =
+           psessionEntry->obssHT40ScanParam.OBSSScanActiveDwellTime;
+    ht40OBSSScanInd->BSSChannelWidthTriggerScanInterval =
+           psessionEntry->obssHT40ScanParam.BSSChannelWidthTriggerScanInterval;
+    ht40OBSSScanInd->OBSSScanPassiveTotalPerChannel =
+           psessionEntry->obssHT40ScanParam.OBSSScanPassiveTotalPerChannel;
+    ht40OBSSScanInd->OBSSScanActiveTotalPerChannel =
+           psessionEntry->obssHT40ScanParam.OBSSScanActiveTotalPerChannel;
+    ht40OBSSScanInd->BSSWidthChannelTransitionDelayFactor =
+           psessionEntry->obssHT40ScanParam.BSSWidthChannelTransitionDelayFactor;
+    ht40OBSSScanInd->OBSSScanActivityThreshold =
+           psessionEntry->obssHT40ScanParam.OBSSScanActivityThreshold;
+    /* TODO update it from the associated BSS*/
+    ht40OBSSScanInd->currentOperatingClass = 1;
+
+    validChannelNum = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+    if (wlan_cfgGetStr(pMac, WNI_CFG_VALID_CHANNEL_LIST,
+                          validChanList,
+                          &validChannelNum) != eSIR_SUCCESS)
+    {
+        limLog(pMac, LOGE,
+                   FL("could not retrieve Valid channel list"));
+    }
+    /* Extract 24G channel list */
+    channel24GNum = 0;
+    for( count =0 ;count < validChannelNum ;count++)
+    {
+       if ((validChanList[count]> RF_CHAN_1) &&
+           (validChanList[count] < RF_CHAN_14))
+       {
+          ht40OBSSScanInd->channels[channel24GNum] = validChanList[count];
+          channel24GNum++;
+       }
+    }
+    ht40OBSSScanInd->channelCount = channel24GNum;
+    /* FW API requests BSS IDX */
+    ht40OBSSScanInd->selfStaIdx = psessionEntry->staId;
+    ht40OBSSScanInd->bssIdx = psessionEntry->bssIdx;
+    ht40OBSSScanInd->fortyMHZIntolerent = 0;
+    ht40OBSSScanInd->ieFieldLen = 0;
+
+    msgQ.type = WDA_HT40_OBSS_SCAN_IND;
+    msgQ.reserved = 0;
+    msgQ.bodyptr = (void *)ht40OBSSScanInd;
+    msgQ.bodyval = 0;
+    PELOGW(limLog(pMac, LOGW, FL("Sending WDA_HT40_OBSS_SCAN_IND to WDA"));)
+    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
+    retCode = wdaPostCtrlMsg(pMac, &msgQ);
+    if (eSIR_SUCCESS != retCode)
+    {
+        limLog(pMac, LOGP, FL("Posting WDA_HT40_OBSS_SCAN_IND "
+                              "to WDA failed, reason=%X"), retCode);
+        vos_mem_free(ht40OBSSScanInd);
+        return retCode;
+    }
+    return retCode;
+}
+/** ---------------------------------------------------------
+\fn      limSendHT40OBSSScanInd
+\brief   LIM sends a WDA_HT40_OBSS_SCAN_IND message to WDA
+\         Stop command support is only for debugging
+\         As per 802.11 spec OBSS scan is mandatory while
+\         operating in HT40 on 2.4GHz band
+\param   tpAniSirGlobal      pMac
+\param   psessionEntry  Session entry
+\return  None
+  -----------------------------------------------------------*/
+tSirRetStatus limSendHT40OBSSStopScanInd(tpAniSirGlobal pMac,
+                                               tpPESession psessionEntry)
+{
+    tSirRetStatus        retCode = eSIR_SUCCESS;
+    tSirMsgQ             msgQ;
+    tANI_U8              bssIdx;
+
+    bssIdx = psessionEntry->bssIdx;
+
+    VOS_TRACE (VOS_MODULE_ID_PE,VOS_TRACE_LEVEL_INFO,
+               " Sending STOP OBSS cmd, bssid %d staid %d \n",
+               psessionEntry->bssIdx, psessionEntry->staId);
+
+    msgQ.type = WDA_HT40_OBSS_STOP_SCAN_IND;
+    msgQ.reserved = 0;
+    msgQ.bodyptr = (void *)&bssIdx;
+    msgQ.bodyval = 0;
+    PELOGW(limLog(pMac, LOGW,
+         FL("Sending WDA_HT40_OBSS_STOP_SCAN_IND to WDA"));)
+    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
+    retCode = wdaPostCtrlMsg(pMac, &msgQ);
+    if (eSIR_SUCCESS != retCode)
+    {
+        limLog(pMac, LOGE, FL("Posting WDA_HT40_OBSS_SCAN_IND "
+                              "to WDA failed, reason=%X"), retCode);
+        return retCode;
+    }
 
     return retCode;
 }
@@ -702,7 +838,15 @@ tSirRetStatus limSendBeaconFilterInfo(tpAniSirGlobal pMac,tpPESession psessionEn
     return retCode;
 }
 
-#ifdef WLAN_FEATURE_11AC
+/**
+ * \brief Send CB mode update to WDA
+ *
+ * \param pMac Pointer to the global MAC structure
+ *
+ * \param psessionEntry          session entry
+ *          pTempParam            CB mode
+ * \return eSIR_SUCCESS on success, eSIR_FAILURE else
+ */
 tSirRetStatus limSendModeUpdate(tpAniSirGlobal pMac, 
                                 tUpdateVHTOpMode *pTempParam,
                                 tpPESession  psessionEntry )
@@ -743,7 +887,6 @@ tSirRetStatus limSendModeUpdate(tpAniSirGlobal pMac,
 
     return retCode;
 }
-#endif 
 
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 /** ---------------------------------------------------------

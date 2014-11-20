@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -108,11 +108,12 @@ typedef struct sPESession           // Added to Support BT-AMP
     tpSirSmeJoinReq         pLimJoinReq;            // handle to sme join req
     tpSirSmeJoinReq         pLimReAssocReq;         //handle to sme reassoc req
     tpLimMlmJoinReq         pLimMlmJoinReq;         //handle to MLM join Req
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
     void                    *pLimMlmReassocRetryReq; //keep reasoc req for retry
 #endif
     void                    *pLimMlmReassocReq;      //handle to MLM reassoc Req
     tANI_U16                channelChangeReasonCode;
+    tANI_U16                channelChangeCSA;        // channel change flag for CSA
     tANI_U8                 dot11mode;
     tANI_U8                 htCapability;
     /* Supported Channel Width Set: 0-20MHz 1 - 40MHz */
@@ -192,7 +193,7 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U32                RICDataLen;             //Used to store the Ric data received in the assoc response
     tANI_U8                 *ricData;
 #endif
-#ifdef FEATURE_WLAN_CCX    
+#ifdef FEATURE_WLAN_ESE
     tANI_U32                tspecLen;               //Used to store the TSPEC IEs received in the assoc response
     tANI_U8                 *tspecIes;
 #endif
@@ -281,11 +282,11 @@ typedef struct sPESession           // Added to Support BT-AMP
     tAniBool            is11Rconnection;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-    tAniBool            isCCXconnection;
-    tCcxPEContext       ccxContext;
+#ifdef FEATURE_WLAN_ESE
+    tAniBool            isESEconnection;
+    tEsePEContext       eseContext;
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
     tAniBool            isFastTransitionEnabled;
 #endif
 #ifdef FEATURE_WLAN_LFR
@@ -325,6 +326,7 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U8    apCenterChan;
     tANI_U8    apChanWidth;
     tANI_U8    txBFIniFeatureEnabled;
+    tANI_U8    txMuBformee;
 #endif
     tANI_U8            spectrumMgtEnabled;
     /* *********************11H related*****************************/
@@ -353,11 +355,19 @@ typedef struct sPESession           // Added to Support BT-AMP
 #endif
     tANI_BOOLEAN fWaitForProbeRsp;
     tANI_BOOLEAN fIgnoreCapsChange;
-    tANI_U8    oxygenNwkIniFeatureEnabled;
+    tANI_BOOLEAN fDeauthReceived;
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM
     tANI_S8 rssi;
 #endif
     tANI_U8 isAmsduSupportInAMPDU;
+    tANI_BOOLEAN isCiscoVendorAP;
+    /* To hold OBSS Scan IE Parameters */
+    tSirOBSSHT40Param obssHT40ScanParam;
+    tANI_U8 isCoalesingInIBSSAllowed;
+    /* flag to indicate country code in beacon */
+    tANI_U8  countryInfoPresent;
+    /*  DSCP to UP mapping for HS 2.0 */
+    tSirQosMapSet QosMapSet;
 }tPESession, *tpPESession;
 
 #define LIM_MAX_ACTIVE_SESSIONS 4

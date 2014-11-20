@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -99,7 +99,7 @@ typedef enum eAniAuthType
 #if defined WLAN_FEATURE_VOWIFI_11R
     eSIR_FT_AUTH,
 #endif
-#if defined FEATURE_WLAN_CCX
+#if defined FEATURE_WLAN_ESE
     eSIR_LEAP_AUTH = 0x80,
 #endif
     eSIR_AUTO_SWITCH,
@@ -177,7 +177,7 @@ typedef struct sSirAddie
     tANI_U8        addIEdata[SIR_MAC_MAX_IE_LENGTH+2];
 } tSirAddie, *tpSirAddie;
 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 
 // The CCKM IE needs to be in the
 // Join and Reassoc Req.
@@ -243,6 +243,34 @@ typedef struct sBoaCommand
     tANI_U8     length;
     tANI_U8     cmd[64];
 }tBoaCommand;
+
+
+typedef __ani_attr_pre_packed struct sTrafStrmMetrics
+{
+    tANI_U16      UplinkPktQueueDly;
+    tANI_U16      UplinkPktQueueDlyHist[4];
+    tANI_U32      UplinkPktTxDly;
+    tANI_U16      UplinkPktLoss;
+    tANI_U16      UplinkPktCount;
+    tANI_U8       RoamingCount;
+    tANI_U16      RoamingDly;
+} __ani_attr_packed tTrafStrmMetrics, *tpTrafStrmMetrics;
+
+
+typedef __ani_attr_pre_packed struct sBcnReportFields
+{
+    tANI_U8       ChanNum;
+    tANI_U8       Spare;
+    tANI_U16      MeasDuration;
+    tANI_U8       PhyType;
+    tANI_U8       RecvSigPower;
+    tSirMacAddr   Bssid;
+    tANI_U32      ParentTsf;
+    tANI_U32      TargetTsf[2];
+    tANI_U16      BcnInterval;
+    tANI_U16      CapabilityInfo;
+} __ani_attr_packed tBcnReportFields, *tpBcnReportFields;
+
 
 #endif /* __ANI_SYSTEM_DEFS_H */
 

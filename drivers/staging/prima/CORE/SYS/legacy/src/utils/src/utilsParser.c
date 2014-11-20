@@ -268,6 +268,16 @@ void ConvertCFParams(tpAniSirGlobal     pMac,
     pOld->cfpDurRemaining = pNew->cfp_durremaining;
 }
 
+void ConvertFHParams (tpAniSirGlobal        pMac,
+                      tSirMacFHParamSet    *pOld,
+                      tDot11fIEFHParamSet  *pNew)
+{
+    pOld->dwellTime   = pNew->dwell_time;
+    pOld->hopSet      = pNew->hop_set;
+    pOld->hopPattern  = pNew->hop_pattern;
+    pOld->hopIndex    = pNew->hop_index;
+}
+
 void ConvertTIM(tpAniSirGlobal pMac,
                       tSirMacTim    *pOld,
                       tDot11fIETIM     *pNew)
@@ -494,7 +504,7 @@ void ConvertWMMTSPEC(tpAniSirGlobal     pMac,
     pOld->tsinfo.traffic.psb          = (tANI_U16)pNew->psb;
     pOld->tsinfo.traffic.userPrio     = (tANI_U16)pNew->user_priority;
     pOld->tsinfo.traffic.ackPolicy    = (tANI_U16)pNew->tsinfo_ack_pol;
-    pOld->nomMsduSz                   = pNew->size;
+    pOld->nomMsduSz                   = (pNew->fixed << 15) | pNew->size;
     pOld->maxMsduSz                   = pNew->max_msdu_size;
     pOld->minSvcInterval              = pNew->min_service_int;
     pOld->maxSvcInterval              = pNew->max_service_int;
@@ -691,11 +701,25 @@ void CreateScanCtsFrame(tpAniSirGlobal pMac, tSirMacMgmtHdr *macMgmtHdr, tSirMac
     return;
 }
 
-
-
-
-
-
+void ConvertQosMapsetFrame(tpAniSirGlobal pMac, tSirQosMapSet* Qos, tDot11fIEQosMapSet* dot11fIE)
+{
+    tANI_U8 i,j=0;
+    Qos->num_dscp_exceptions = (dot11fIE->num_dscp_exceptions - 16)/2;
+    for (i=0;i<Qos->num_dscp_exceptions;i++)
+    {
+        Qos->dscp_exceptions[i][0] = dot11fIE->dscp_exceptions[j];
+        j++;
+        Qos->dscp_exceptions[i][1] = dot11fIE->dscp_exceptions[j];
+        j++;
+    }
+    for (i=0;i<8;i++)
+    {
+        Qos->dscp_range[i][0] = dot11fIE->dscp_exceptions[j];
+        j++;
+        Qos->dscp_range[i][1] = dot11fIE->dscp_exceptions[j];
+        j++;
+    }
+}
 
 /**
     @brief    :    This functions creates a DATA_NULL/CTS2SELF frame in Big endian format 

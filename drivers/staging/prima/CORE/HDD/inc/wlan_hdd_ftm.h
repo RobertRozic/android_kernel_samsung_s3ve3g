@@ -74,6 +74,10 @@
 #define WE_CLEAR_RX_PKT_CNT   8
 #define WE_RX                 9
 #define WE_ENABLE_CHAIN      10
+#define WE_SET_PWR_CNTL_MODE 11
+#define WE_ENABLE_DPD        12
+#define WE_SET_CB            13
+#define WE_TX_CW_RF_GEN      14
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_FTM_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -105,7 +109,11 @@
 #define WLAN_FTM_PRIV_SET_NONE_GET_NONE   (SIOCIWFIRSTPRIV + 6)
 #define WE_SET_NV_DEFAULTS    1
 
+#define WLAN_FTM_PRIV_SET_VAR_INT_GET_NONE   (SIOCIWFIRSTPRIV + 7)
+#define WE_SET_TX_WF_GAIN  1
+
 #define WE_FTM_MAX_STR_LEN 1024
+#define MAX_FTM_VAR_ARGS  7
 
 #define MAX_NV_TABLE_SIZE  40000
 

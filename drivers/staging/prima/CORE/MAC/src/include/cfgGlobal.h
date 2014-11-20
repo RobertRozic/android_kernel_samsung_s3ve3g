@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -57,9 +56,10 @@
 #include "sirCommon.h"
 #include "sirTypes.h"
 #include "wniCfgSta.h"
-
+#include "wniCfgAp.h"
 #define CFG_MAX_NUM_STA      SIR_MAX_NUM_STA_IN_IBSS
 
+#define CFG_MAX_STATIC_STRING   70
 #define CFG_MAX_STR_LEN       256    // as the number of channels grows, 128 is not big enough
 
 /*--------------------------------------------------------------------*/
@@ -70,6 +70,23 @@ typedef struct
     tANI_U32   control;
 } tCfgCtl;
 
+typedef struct sAniSirCfgStaticString
+{
+    tANI_U16 cfgId;
+    tANI_U8  maxLen;
+    tANI_U8  length;
+    tANI_U8  data[255];
+}tAniSirCfgStaticString;
+
+typedef struct sAniSirCfgStatic
+{
+    tANI_U16 cfgId;
+    tANI_U32 control;
+    tANI_U32 cfgIMin;
+    tANI_U32 cfgIMax;
+    tANI_U32 cfgIVal;
+    void     *pStrData;
+}tAniSirCgStatic;
 
 typedef struct sAniSirCfg
 {

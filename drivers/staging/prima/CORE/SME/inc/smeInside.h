@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -129,6 +129,7 @@ typedef struct TdlsSendMgmtInfo
   tANI_U8 dialog;
   tANI_U16 statusCode;
   tANI_U8 responder;
+  tANI_U32 peerCapability;
   tANI_U8 *buf;
   tANI_U8 len;
 } tTdlsSendMgmtCmdInfo;
@@ -139,7 +140,12 @@ typedef struct TdlsLinkEstablishInfo
   tANI_U8 uapsdQueues;
   tANI_U8 maxSp;
   tANI_U8 isBufSta;
+  tANI_U8 isOffChannelSupported;
   tANI_U8 isResponder;
+  tANI_U8 supportedChannelsLen;
+  tANI_U8 supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
+  tANI_U8 supportedOperClassesLen;
+  tANI_U8 supportedOperClasses[SIR_MAC_MAX_SUPP_OPER_CLASSES];
 } tTdlsLinkEstablishCmdInfo;
 
 typedef struct TdlsAddStaInfo
@@ -162,6 +168,16 @@ typedef struct TdlsDelStaInfo
 {
   tSirMacAddr peerMac;
 } tTdlsDelStaCmdInfo;
+
+// tdlsoffchan
+typedef struct TdlsChanSwitchInfo
+{
+  tSirMacAddr peerMac;
+  tANI_U8 tdlsOffCh;
+  tANI_U8 tdlsOffChBwOffset;
+  tANI_U8 tdlsSwMode;
+} tTdlsChanSwitchCmdInfo;
+
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 typedef struct TdlsDisReqCmdinfo
 {
@@ -198,6 +214,7 @@ typedef struct s_tdls_cmd
     tTdlsSendMgmtCmdInfo tdlsSendMgmtCmdInfo;
     tTdlsAddStaCmdInfo   tdlsAddStaCmdInfo;
     tTdlsDelStaCmdInfo   tdlsDelStaCmdInfo;
+    tTdlsChanSwitchCmdInfo tdlsChanSwitchCmdInfo; //tdlsoffchan
   }u;
 } tTdlsCmd;
 #endif  /* FEATURE_WLAN_TDLS */
@@ -313,8 +330,14 @@ eHalStatus csrTdlsChangePeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr 
 eHalStatus csrTdlsDelPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
 eHalStatus csrTdlsProcessCmd(tpAniSirGlobal pMac,tSmeCmd *pCommand );
 eHalStatus csrTdlsProcessLinkEstablish( tpAniSirGlobal pMac, tSmeCmd *cmd );
-eHalStatus tdlsMsgProcessor(tpAniSirGlobal pMac,v_U16_t msg_type,
-                                                           void *pMsgBuf);
+eHalStatus csrTdlsProcessChanSwitchReq(tpAniSirGlobal pMac, tSmeCmd *cmd ); //tdlsoffchan
+eHalStatus tdlsMsgProcessor(tpAniSirGlobal pMac,v_U16_t msg_type, void *pMsgBuf);
+VOS_STATUS csrTdlsSendChanSwitchReq(tHalHandle hHal,
+                                    tANI_U8 sessionId,
+                                    tSirMacAddr peerMac,
+                                    tANI_S32 tdlsOffCh,
+                                    tANI_S32 tdlsOffChBwOffset,
+                                    tANI_U8 tdlsSwMode);
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 eHalStatus csrTdlsDiscoveryReq(tHalHandle hHal, tANI_U8 sessionId,
                                           tCsrTdlsDisRequest *tdlsDisReq);
@@ -325,13 +348,20 @@ eHalStatus csrTdlsTeardownReq(tHalHandle hHal, tANI_U8 sessionId,
 #endif
 #endif /* FEATURE_WLAN_TDLS */
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-eHalStatus csrFlushBgScanRoamChannelList(tpAniSirGlobal pMac);
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
+eHalStatus csrFlushCfgBgScanRoamChannelList(tpAniSirGlobal pMac);
 eHalStatus csrCreateBgScanRoamChannelList(tpAniSirGlobal pMac,
                                             const tANI_U8 *pChannelList,
                                             const tANI_U8 numChannels);
 eHalStatus csrUpdateBgScanConfigIniChannelList(tpAniSirGlobal pMac, eCsrBand eBand);
 #endif
 
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
+                                                tANI_U8 *pChannelList,
+                                                tANI_U8 numChannels,
+                                                const eCsrBand eBand);
+#endif
+void activeListCmdTimeoutHandle(void *userData);
 
 #endif //#if !defined( __SMEINSIDE_H )

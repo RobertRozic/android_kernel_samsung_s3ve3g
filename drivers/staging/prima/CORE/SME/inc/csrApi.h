@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,9 +19,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * All Rights Reserved.
+ * Qualcomm Atheros Confidential and Proprietary.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -53,7 +53,6 @@
 #include "sirApi.h"
 #include "sirMacProtDef.h"
 #include "csrLinkList.h"
-
 typedef enum
 {
     eCSR_AUTH_TYPE_NONE,    //never used
@@ -77,10 +76,10 @@ typedef enum
     eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE,
     eCSR_AUTH_TYPE_WAPI_WAI_PSK,
 #endif /* FEATURE_WLAN_WAPI */
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
     eCSR_AUTH_TYPE_CCKM_WPA,
     eCSR_AUTH_TYPE_CCKM_RSN,
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
 #ifdef WLAN_FEATURE_11W
     eCSR_AUTH_TYPE_RSN_PSK_SHA256,
 #endif
@@ -104,9 +103,9 @@ typedef enum
 #ifdef FEATURE_WLAN_WAPI
     eCSR_ENCRYPT_TYPE_WPI, //WAPI
 #endif /* FEATURE_WLAN_WAPI */
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
     eCSR_ENCRYPT_TYPE_KRK,
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
 #ifdef WLAN_FEATURE_11W
     //11w BIP
     eCSR_ENCRYPT_TYPE_AES_CMAC,
@@ -188,7 +187,6 @@ typedef enum {
     eCSR_SCAN_SOFTAP_CHANNEL_RANGE,
     eCSR_SCAN_P2P_FIND_PEER,
 }eCsrRequestType;
-
 typedef enum {
     eCSR_SCAN_RESULT_GET = 0,
     eCSR_SCAN_RESULT_FLUSH = 1,     //to delete all cached scan results
@@ -201,6 +199,16 @@ typedef enum
     eCSR_SCAN_ABORT,
    eCSR_SCAN_FOUND_PEER,
 }eCsrScanStatus;
+
+/* Reason to abort the scan
+ * The reason can used later to decide whether to update the scan results
+ * to upper layer or not
+ */
+typedef enum
+{
+    eCSR_SCAN_ABORT_DEFAULT,
+    eCSR_SCAN_ABORT_DUE_TO_BAND_CHANGE, //Scan aborted due to band change
+}eCsrAbortReason;
 
 #define CSR_SCAN_TIME_DEFAULT       0
 #define CSR_VALUE_IGNORED           0xFFFFFFFF
@@ -220,7 +228,7 @@ typedef enum
 #else
 #define CSR_MAX_KEY_LEN         ( CSR_TKIP_KEY_LEN )  //longest one is for TKIP
 #endif /* FEATURE_WLAN_WAPI */
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 #define CSR_KRK_KEY_LEN 16
 #endif
 
@@ -263,6 +271,10 @@ typedef struct tagCsrStaParams
     tSirVHTCap VHTCap;
     tANI_U8    uapsd_queues;
     tANI_U8    max_sp;
+    tANI_U8    supported_channels_len;
+    tANI_U8    supported_channels[SIR_MAC_MAX_SUPP_CHANNELS];
+    tANI_U8    supported_oper_classes_len;
+    tANI_U8    supported_oper_classes[SIR_MAC_MAX_SUPP_OPER_CLASSES];
 }tCsrStaParams;
 
 typedef struct tagCsrScanRequest
@@ -282,7 +294,6 @@ typedef struct tagCsrScanRequest
     eCsrRequestType requestType;    //11d scan or full scan
     tANI_BOOLEAN p2pSearch;
     tANI_BOOLEAN skipDfsChnlInP2pSearch;
-    tANI_BOOLEAN bcnRptReqScan;     //is Scan issued by Beacon Report Request
 }tCsrScanRequest;
 
 typedef struct tagCsrBGScanRequest
@@ -334,15 +345,24 @@ typedef struct tagCsrMobilityDomainInfo
 } tCsrMobilityDomainInfo;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-typedef struct tagCsrCcxCckmInfo
+#ifdef FEATURE_WLAN_ESE
+typedef struct tagCsrEseCckmInfo
 {
     tANI_U32       reassoc_req_num;
     tANI_BOOLEAN   krk_plumbed;
     tANI_U8        krk[CSR_KRK_KEY_LEN];
-} tCsrCcxCckmInfo;
+} tCsrEseCckmInfo;
 #endif
 
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+#define CSR_DOT11F_IE_RSN_MAX_LEN   (114)  /*TODO: duplicate one in dot11f.h */
+
+typedef struct tagCsrEseCckmIe
+{
+    tANI_U8 cckmIe[CSR_DOT11F_IE_RSN_MAX_LEN];
+    tANI_U8 cckmIeLen;
+} tCsrEseCckmIe;
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 typedef struct tagCsrScanResultFilter
 {
@@ -362,6 +382,7 @@ typedef struct tagCsrScanResultFilter
     tANI_U8 uapsd_mask;
     /*For WPS filtering if true => auth and ecryption should be ignored*/
     tANI_BOOLEAN bWPSAssociation;
+    tANI_BOOLEAN bOSENAssociation;
 #if defined WLAN_FEATURE_VOWIFI
     /*For measurement reports --> if set, only SSID, BSSID and channel is considered for filtering.*/
     tANI_BOOLEAN fMeasurement;
@@ -370,6 +391,12 @@ typedef struct tagCsrScanResultFilter
     tCsrMobilityDomainInfo MDID;
 #endif
     tANI_BOOLEAN p2pResult;
+#ifdef WLAN_FEATURE_11W
+    // Management Frame Protection
+    tANI_BOOLEAN MFPEnabled;
+    tANI_U8 MFPRequired;
+    tANI_U8 MFPCapable;
+#endif
 }tCsrScanResultFilter;
 
 
@@ -451,14 +478,6 @@ typedef enum
 #ifdef FEATURE_WLAN_LFR
     eCSR_ROAM_PMK_NOTIFY,
 #endif
-//Begin fjdw67 Motorola, IKJB42MAIN-6385 - LFR roaming instrumentation
-#ifdef FEATURE_WLAN_LFR_METRICS
-    eCSR_ROAM_PREAUTH_INIT_NOTIFY,
-    eCSR_ROAM_PREAUTH_STATUS_SUCCESS,
-    eCSR_ROAM_PREAUTH_STATUS_FAILURE,
-    eCSR_ROAM_HANDOVER_SUCCESS,
-#endif
-//End fjdw67 Motorola
 #ifdef FEATURE_WLAN_TDLS
     eCSR_ROAM_TDLS_STATUS_UPDATE,
     eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND,
@@ -470,6 +489,16 @@ typedef enum
     eCSR_ROAM_UNPROT_MGMT_FRAME_IND,
 #endif
 
+#ifdef FEATURE_CESIUM_PROPRIETARY
+    eCSR_ROAM_IBSS_PEER_INFO_COMPLETE,
+#endif
+
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+    eCSR_ROAM_TSM_IE_IND,
+    eCSR_ROAM_CCKM_PREAUTH_NOTIFY,
+    eCSR_ROAM_ESE_ADJ_AP_REPORT_IND,
+    eCSR_ROAM_ESE_BCN_REPORT_IND,
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 }eRoamCmdStatus;
 
 
@@ -557,9 +586,6 @@ typedef enum
     eCSR_ROAM_RESULT_TEARDOWN_TDLS_PEER_IND,
     eCSR_ROAM_RESULT_DELETE_ALL_TDLS_PEER_IND,
     eCSR_ROAM_RESULT_LINK_ESTABLISH_REQ_RSP,
-#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
-    eCSR_ROAM_RESULT_TDLS_DISAPPEAR_AP_IND,
-#endif
 #endif
 
 }eCsrRoamResult;
@@ -865,14 +891,20 @@ typedef struct tagCsrRoamProfile
     tANI_U8 *pWAPIReqIE;   //If not null, it has the IE byte stream for WAPI
 #endif /* FEATURE_WLAN_WAPI */
 
-    tANI_U32 nAddIEScanLength;   //The byte count in the pAddIE for scan (at the time of join)
-    tANI_U8 *pAddIEScan;       //If not null, it has the IE byte stream for additional IE, which can be WSC IE and/or P2P IE
+    //The byte count in the pAddIE for scan (at the time of join)
+    tANI_U32 nAddIEScanLength;
+    /* Additional IE information.
+     * It has the IE byte stream for additional IE,
+     * which can be WSC IE and/or P2P IE
+     */
+    tANI_U8  addIEScan[SIR_MAC_MAX_IE_LENGTH+2];       //Additional IE information.
     tANI_U32 nAddIEAssocLength;   //The byte count in the pAddIE for assoc
     tANI_U8 *pAddIEAssoc;       //If not null, it has the IE byte stream for additional IE, which can be WSC IE and/or P2P IE
 
     tANI_U8 countryCode[WNI_CFG_COUNTRY_CODE_LEN];  //it is ignored if [0] is 0.
     /*WPS Association if true => auth and ecryption should be ignored*/
     tANI_BOOLEAN bWPSAssociation;
+    tANI_BOOLEAN bOSENAssociation;
     tANI_U32 nWSCReqIELength;   //The byte count in the pWSCReqIE
     tANI_U8 *pWSCReqIE;   //If not null, it has the IE byte stream for WSC
 
@@ -928,9 +960,9 @@ typedef struct tagCsrRoamConnectedProfile
     tCsrMobilityDomainInfo MDID;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-    tCsrCcxCckmInfo ccxCckmInfo;
-    tANI_BOOLEAN    isCCXAssoc;
+#ifdef FEATURE_WLAN_ESE
+    tCsrEseCckmInfo eseCckmInfo;
+    tANI_BOOLEAN    isESEAssoc;
 #endif
     tANI_U32 dot11Mode;
 }tCsrRoamConnectedProfile;
@@ -1019,6 +1051,8 @@ typedef struct tagCsrConfigParam
     tANI_U32  nActiveMinChnTime;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTime;     //in units of milliseconds
 
+    tANI_U32  nInitialDwellTime;      //in units of milliseconds
+
     tANI_U32  nActiveMinChnTimeBtc;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTimeBtc;     //in units of milliseconds
     tANI_U32  disableAggWithBtc;
@@ -1044,17 +1078,19 @@ typedef struct tagCsrConfigParam
 #ifdef WLAN_FEATURE_VOWIFI_11R
     tCsr11rConfigParams  csr11rConfig;
 #endif
-#ifdef FEATURE_WLAN_CCX
-    tANI_U8   isCcxIniFeatureEnabled;
+#ifdef FEATURE_WLAN_ESE
+    tANI_U8   isEseIniFeatureEnabled;
 #endif
 #ifdef FEATURE_WLAN_LFR
     tANI_U8   isFastRoamIniFeatureEnabled;
+    tANI_U8   MAWCEnabled;
 #endif
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
     tANI_U8        isFastTransitionEnabled;
     tANI_U8        RoamRssiDiff;
     tANI_U8        nImmediateRoamRssiDiff;
+    tANI_BOOLEAN   isWESModeEnabled;
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
@@ -1089,6 +1125,7 @@ typedef struct tagCsrConfigParam
     tANI_U8         enableTxBF;
     tANI_U8         txBFCsnValue;
     tANI_BOOLEAN    enableVhtFor24GHz;
+    tANI_U8         enableMuBformee;
 #endif
 
     /*
@@ -1096,7 +1133,7 @@ typedef struct tagCsrConfigParam
     */
     tANI_BOOLEAN fFirstScanOnly2GChnl;
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
     tANI_BOOLEAN nRoamPrefer5GHz;
     tANI_BOOLEAN nRoamIntraBand;
     tANI_U8      nProbes;
@@ -1113,10 +1150,12 @@ typedef struct tagCsrConfigParam
 
     tANI_U8   enableTxLdpc;
 
-    tANI_BOOLEAN  enableOxygenNwk;
-
     tANI_U8 isAmsduSupportInAMPDU;
-
+    tANI_U8 nSelect5GHzMargin;
+    tANI_U8 allowDFSChannelRoam;
+    tANI_BOOLEAN initialScanSkipDFSCh;
+    tANI_U8 isCoalesingInIBSSAllowed;
+    tANI_BOOLEAN sendDeauthBeforeCon;
 }tCsrConfigParam;
 
 //Tush
@@ -1172,8 +1211,14 @@ typedef struct tagCsrRoamInfo
     tANI_BOOLEAN wmmEnabledSta;   //set to true if WMM enabled STA
     tANI_U32 dtimPeriod;
 
-#ifdef FEATURE_WLAN_CCX
-    tANI_BOOLEAN isCCXAssoc;
+#ifdef FEATURE_WLAN_ESE
+    tANI_BOOLEAN isESEAssoc;
+#ifdef FEATURE_WLAN_ESE_UPLOAD
+    tSirTsmIE tsmIe;
+    tANI_U32 timestamp[2];
+    tANI_U16 tsmRoamDelay;
+    tSirEseBcnReportRsp *pEseBcnReportRsp;
+#endif /* FEATURE_WLAN_ESE_UPLOAD */
 #endif
     void* pRemainCtx;
     tANI_U32 rxChan;
@@ -1189,11 +1234,8 @@ typedef struct tagCsrRoamInfo
     tANI_U8* assocReqPtr;
 
     tANI_S8 rxRssi;
+    tANI_U32 maxRateFlags;
 }tCsrRoamInfo;
-
-
-
-
 
 typedef struct tagCsrFreqScanInfo
 {
@@ -1346,7 +1388,12 @@ typedef struct tagCsrLinkEstablishParams
     tANI_U8 uapsdQueues;
     tANI_U8 maxSp;
     tANI_U8 isBufSta;
+    tANI_U8 isOffChannelSupported;
     tANI_U8 isResponder;
+    tANI_U8 supportedChannelsLen;
+    tANI_U8 supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
+    tANI_U8 supportedOperClassesLen;
+    tANI_U8 supportedOperClasses[SIR_MAC_MAX_SUPP_OPER_CLASSES];
 }tCsrTdlsLinkEstablishParams;
 
 typedef struct tagCsrTdlsSendMgmt
@@ -1356,6 +1403,7 @@ typedef struct tagCsrTdlsSendMgmt
         tANI_U8 dialog;
         tANI_U16 statusCode;
         tANI_U8 responder;
+        tANI_U32 peerCapability;
         tANI_U8 *buf;
         tANI_U8 len;
 
@@ -1394,6 +1442,21 @@ typedef struct tagCsrHandoffRequest
 }tCsrHandoffRequest;
 #endif
 
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+typedef struct tagCsrEseBeaconReqParams
+{
+    tANI_U16   measurementToken;
+    tANI_U8    channel;
+    tANI_U8    scanMode;
+    tANI_U16   measurementDuration;
+} tCsrEseBeaconReqParams, *tpCsrEseBeaconReqParams;
+
+typedef struct tagCsrEseBeaconReq
+{
+    tANI_U8                numBcnReqIe;
+    tCsrEseBeaconReqParams bcnReq[SIR_ESE_MAX_MEAS_IE_REQS];
+} tCsrEseBeaconReq, *tpCsrEseBeaconReq;
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 ////////////////////////////////////////////Common SCAN starts
 
@@ -1453,7 +1516,6 @@ typedef eHalStatus (*csrRoamSessionCloseCallback)(void *pContext);
 
 
 ///////////////////////////////////////////Common Roam ends
-
 
 
 /* ---------------------------------------------------------------------------
@@ -1535,6 +1597,21 @@ typedef void ( *tCsrStatsCallback) (void * stats, void *pContext);
 ---------------------------------------------------------------------------*/
 
 typedef void ( *tCsrRssiCallback) (v_S7_t rssi, tANI_U32 staId, void *pContext);
+
+
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+/*---------------------------------------------------------------------------
+  This is the type for a tsm stats callback to be registered with SME
+  for getting tsm stats
+
+  \param tsmMetrics - tsmMetrics
+  \param pContext - any user data given at callback registration.
+  \return None
+
+---------------------------------------------------------------------------*/
+
+typedef void ( *tCsrTsmStatsCallback) (tAniTrafStrmMetrics tsmMetrics, tANI_U32 staId, void *pContext);
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 /*---------------------------------------------------------------------------
   This is the type for a snr callback to be registered with SME

@@ -1370,9 +1370,9 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
 {
    tLimIbssPeerNode *pTempNode, *pPrevNode;
    tLimIbssPeerNode *pTempNextNode = NULL;
-   tpDphHashNode     pStaDs;
-   tANI_U16          peerIdx;
-   tANI_U16          staIndex;
+   tpDphHashNode     pStaDs=NULL;
+   tANI_U16          peerIdx=0;
+   tANI_U16          staIndex=0;
    tANI_U8           ucUcastSig;
    tANI_U8           ucBcastSig;
 
@@ -1386,7 +1386,7 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
       pTempNextNode = pTempNode->next;
 
       /* Delete the STA with MAC address */
-      if (palEqualMemory( pMac->hHdd, (tANI_U8 *) macAddr,
+      if (vos_mem_compare( (tANI_U8 *) macAddr,
                (tANI_U8 *) &pTempNode->peerMacAddr,
                sizeof(tSirMacAddr)) )
       {
@@ -1415,7 +1415,7 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
             else
                pPrevNode->next = pTempNode->next;
 
-            palFreeMemory(pMac->hHdd, pTempNode);
+            vos_mem_free(pTempNode);
             pMac->lim.gLimNumIbssPeers--;
 
             pTempNode = pTempNextNode;
@@ -1471,7 +1471,8 @@ limIbssCoalesce(
                                   MAC_ADDR_ARRAY(currentBssId), MAC_ADDR_ARRAY(pHdr->bssId));
 
     /* Check for IBSS Coalescing only if Beacon is from different BSS */
-    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr ))
+          && psessionEntry->isCoalesingInIBSSAllowed)
     {
        /*
         * If STA entry is already available in the LIM hash table, then it is
@@ -1510,6 +1511,12 @@ limIbssCoalesce(
        ibss_bss_delete(pMac,psessionEntry);
        return eSIR_SUCCESS;
     }
+    else
+    {
+       if (!vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+           return eSIR_LIM_IGNORE_BEACON;
+    }
+
 
     // STA in IBSS mode and SSID matches with ours
     pPeerNode = ibss_peer_find(pMac, pHdr->sa);
@@ -1518,14 +1525,20 @@ limIbssCoalesce(
         /* Peer not in the list - Collect BSS description & add to the list */
         tANI_U32      frameLen;
         tSirRetStatus retCode;
-        PELOGW(limLog(pMac, LOGW, FL("IBSS Peer node does not exist, adding it***"));)
 
-#ifndef ANI_SIR_IBSS_PEER_CACHING
-        /** Limit the Max number of IBSS Peers allowed as the max number of STA's allowed
+        /*
+         * Limit the Max number of IBSS Peers allowed as the max
+         * number of STA's allowed
+         * pMac->lim.gLimNumIbssPeers will be increamented after exiting
+         * this function. so we will add additional 1 to compare against
+         * pMac->lim.gLimIbssStaLimit
          */
-        if (pMac->lim.gLimNumIbssPeers >= pMac->lim.maxStation)
+        if ((pMac->lim.gLimNumIbssPeers+1) >= pMac->lim.gLimIbssStaLimit)
+        {
+            PELOGE(limLog(pMac, LOGE, FL("**** MAX STA LIMIT HAS REACHED ****"));)
             return eSIR_LIM_MAX_STA_REACHED_ERROR;
-#endif
+        }
+        PELOGW(limLog(pMac, LOGW, FL("IBSS Peer node does not exist, adding it***"));)
         frameLen = sizeof(tLimIbssPeerNode) + ieLen - sizeof(tANI_U32);
 
         pPeerNode = vos_mem_malloc((tANI_U16)frameLen);
@@ -1611,12 +1624,12 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
 {
     tLimIbssPeerNode *pTempNode, *pPrevNode;
     tLimIbssPeerNode *pTempNextNode = NULL;
-    tANI_U16      peerIdx;
-    tpDphHashNode pStaDs;
-    tANI_U32 threshold;
-    tANI_U16 staIndex;
-    tANI_U8 ucUcastSig;
-    tANI_U8 ucBcastSig;
+    tANI_U16      peerIdx=0;
+    tpDphHashNode pStaDs=0;
+    tANI_U32 threshold=0;
+    tANI_U16 staIndex=0;
+    tANI_U8 ucUcastSig=0;
+    tANI_U8 ucBcastSig=0;
 
     /** MLM BSS is started and if PE in scanmode then MLM state will be waiting for probe resp.
      *  If Heart beat timeout triggers during this corner case then we need to reactivate HeartBeat timer 

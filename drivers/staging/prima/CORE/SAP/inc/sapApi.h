@@ -456,6 +456,11 @@ typedef struct sap_Config {
     v_U32_t         ht_op_mode_fixed;
     tVOS_CON_MODE   persona; /*Tells us which persona it is GO or AP for now*/
 
+#ifdef WLAN_FEATURE_11W
+    v_BOOL_t        mfpRequired;
+    v_BOOL_t        mfpCapable;
+#endif
+
 } tsap_Config_t;
 
 typedef enum {
@@ -580,6 +585,14 @@ typedef struct sap_SoftapStats_s {
 #endif
 } tSap_SoftapStats, *tpSap_SoftapStats;
 
+#ifdef FEATURE_WLAN_CH_AVOID
+/* Store channel safty information */
+typedef struct
+{
+   v_U16_t   channelNumber;
+   v_BOOL_t  isSafe;
+} safeChannelType;
+#endif /* FEATURE_WLAN_CH_AVOID */
 
 int sapSetPreferredChannel(tANI_U8* ptr);
 void sapCleanupChannelList(void);

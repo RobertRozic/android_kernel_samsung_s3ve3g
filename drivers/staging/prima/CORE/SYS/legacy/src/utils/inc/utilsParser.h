@@ -60,6 +60,7 @@
 
 void          ConvertSSID           (tpAniSirGlobal, tSirMacSSid*,               tDot11fIESSID*);
 void          ConvertSuppRates      (tpAniSirGlobal, tSirMacRateSet*,            tDot11fIESuppRates*);
+void          ConvertFHParams       (tpAniSirGlobal, tSirMacFHParamSet*,         tDot11fIEFHParamSet*);
 void          ConvertExtSuppRates   (tpAniSirGlobal, tSirMacRateSet*,            tDot11fIEExtSuppRates*);
 void          ConvertQOSCaps        (tpAniSirGlobal, tSirMacQosCapabilityIE*,    tDot11fIEQOSCapsAp*);
 void          ConvertQOSCapsStation (tpAniSirGlobal, tSirMacQosCapabilityStaIE*, tDot11fIEQOSCapsStation*);
@@ -87,6 +88,7 @@ tSirRetStatus ConvertP2POpaque      (tpAniSirGlobal, tSirAddie*,                
 #ifdef WLAN_FEATURE_WFD
 tSirRetStatus ConvertWFDOpaque      (tpAniSirGlobal, tSirAddie*,                 tDot11fIEWFDIEOpaque*);
 #endif
+void          ConvertQosMapsetFrame(tpAniSirGlobal, tSirQosMapSet*,     tDot11fIEQosMapSet*);
 
 
 #endif

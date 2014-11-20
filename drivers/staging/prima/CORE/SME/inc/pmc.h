@@ -191,6 +191,7 @@ typedef struct sPmcInfo
     tANI_BOOLEAN pmcReady; /*whether eWNI_SME_SYS_READY_IND has been sent to PE or not */
     tANI_BOOLEAN wowlEnabled;  /* TRUE if WoWL is enabled */
     tANI_BOOLEAN wowlModeRequired; /* TRUE if device should go to WOWL on entering BMPS */
+    tWowlExitSource wowlExitSrc; /*WoWl exiting because of wakeup pkt or user explicitly disabling WoWL*/
     void (*enterWowlCallbackRoutine) (void *callbackContext, eHalStatus status); /* routine to call for wowl request */ 
     void *enterWowlCallbackContext;/* value to be passed as parameter to routine specified above */
     tSirSmeWowlEnterParams wowlEnterParams; /* WOWL mode configuration */
@@ -221,6 +222,17 @@ typedef struct sPmcInfo
     v_BOOL_t    ImpsReqTimerFailed;
     tANI_U8     ImpsReqFailCnt;
     tANI_U8     ImpsReqTimerfailCnt;
+
+#ifdef FEATURE_WLAN_BATCH_SCAN
+   /*HDD callback to be called after receiving SET BATCH SCAN RSP from FW*/
+   hddSetBatchScanReqCallback setBatchScanReqCallback;
+   void * setBatchScanReqCallbackContext;
+   /*HDD callback to be called after receiving BATCH SCAN iRESULT IND from FW*/
+   hddTriggerBatchScanResultIndCallback batchScanResultCallback;
+   void * batchScanResultCallbackContext;
+#endif
+
+
 } tPmcInfo, *tpPmcInfo;
 
 

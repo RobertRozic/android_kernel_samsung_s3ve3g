@@ -95,7 +95,7 @@ static void ptt_sock_dump_buf(const unsigned char * pbuf, int cnt)
 }
 #endif
 //Utility function to send a netlink message to an application in user space
-int ptt_sock_send_msg_to_app(tAniHdr *wmsg, int radio, int src_mod, int pid)
+int ptt_sock_send_msg_to_app(tAniHdr *wmsg, int radio, int src_mod, int pid, int flag)
 {
    int err = -1;
    int payload_len;
@@ -132,7 +132,7 @@ int ptt_sock_send_msg_to_app(tAniHdr *wmsg, int radio, int src_mod, int pid)
 #ifdef PTT_SOCK_DEBUG_VERBOSE
    ptt_sock_dump_buf((const unsigned char *)skb->data, skb->len);
 #endif
-   err = nl_srv_ucast(skb, pid);
+   err = nl_srv_ucast(skb, pid, flag);
    return err;
 }
 /*
@@ -148,13 +148,18 @@ static void ptt_sock_proc_reg_req(tAniHdr *wmsg, int radio)
    //send reg response message to the application
    rspmsg.ret = ANI_NL_MSG_OK;
    rspmsg.regReq.type = reg_req->type;
-   /*Save the pid*/    
-   pAdapterHandle->ptt_pid = reg_req->pid;   
+#ifdef WLAN_KD_READY_NOTIFIER
+   /* NL client try to registration
+    * to make sure connection, broadcast READY notification */
+   nl_srv_nl_ready_indication();
+#endif /* WLAN_KD_READY_NOTIFIER */
+   /*Save the pid*/
+   pAdapterHandle->ptt_pid = reg_req->pid;
    rspmsg.regReq.pid= reg_req->pid;
    rspmsg.wniHdr.type = cpu_to_be16(ANI_MSG_APP_REG_RSP);
    rspmsg.wniHdr.length = cpu_to_be16(sizeof(rspmsg));
    if (ptt_sock_send_msg_to_app((tAniHdr *)&rspmsg.wniHdr, radio,
-      ANI_NL_MSG_PUMAC, reg_req->pid) < 0)
+      ANI_NL_MSG_PUMAC, reg_req->pid, MSG_DONTWAIT) < 0)
    {
       PTT_TRACE(VOS_TRACE_LEVEL_ERROR, "%s: Error sending ANI_MSG_APP_REG_RSP to pid[%d]\n",
          __func__, reg_req->pid);
@@ -213,7 +218,7 @@ static void ptt_proc_quarky_msg(tAniNlHdr *wnl, tAniHdr *wmsg, int radio)
             if(vosStatus != VOS_STATUS_SUCCESS)
                PTT_TRACE(VOS_TRACE_LEVEL_ERROR, "%s: Read Register [0x%08lX] failed!!\n",
                __func__, reg_addr);
-            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid);
+            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid, MSG_DONTWAIT);
             break;
          case PTT_MSG_WRITE_REGISTER:
             reg_addr = *(v_U32_t*) ((const unsigned char*)wmsg + 8);
@@ -227,7 +232,7 @@ static void ptt_proc_quarky_msg(tAniNlHdr *wnl, tAniHdr *wmsg, int radio)
                   __func__, reg_addr, reg_val);
             }
             //send message to the app
-            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid);
+            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid, MSG_DONTWAIT);
             break;
          case PTT_MSG_READ_MEMORY:
             reg_addr = *(v_U32_t*) ((char*)wmsg + 8);
@@ -242,7 +247,7 @@ static void ptt_proc_quarky_msg(tAniNlHdr *wnl, tAniHdr *wmsg, int radio)
             }
             ptt_sock_swap_32(buf, len_payload);
             //send message to the app
-            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid);
+            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid, MSG_DONTWAIT);
             break;
          case PTT_MSG_WRITE_MEMORY:
             reg_addr = *(v_U32_t*) ((char*)wmsg + 8);
@@ -258,7 +263,7 @@ static void ptt_proc_quarky_msg(tAniNlHdr *wnl, tAniHdr *wmsg, int radio)
                   __func__, reg_addr);
             }
             //send message to the app
-            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid);
+            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid, MSG_DONTWAIT);
             break;
          case PTT_MSG_LOG_DUMP_DBG:
             cmd = *(unsigned int *) ((char *)wmsg + 8);
@@ -269,7 +274,7 @@ static void ptt_proc_quarky_msg(tAniNlHdr *wnl, tAniHdr *wmsg, int radio)
             PTT_TRACE(VOS_TRACE_LEVEL_INFO, "%s: PTT_MSG_LOG_DUMP_DBG %d arg1 %d arg2 %d arg3 %d arg4 %d\n",
                __func__, cmd, arg1, arg2, arg3, arg4);
             //send message to the app
-            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid);
+            ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, wnl->nlh.nlmsg_pid, MSG_DONTWAIT);
             break;
          case PTT_MSG_FTM_CMDS_TYPE:
             wlan_hdd_process_ftm_cmd(pAdapterHandle,wnl);
