@@ -9007,7 +9007,9 @@ int hdd_wlan_startup(struct device *dev )
    }
 #endif
 
+#ifdef FEATURE_WLAN_TDLS
    wlan_hdd_tdls_init(pHddCtx);
+#endif
 
    sme_Register11dScanDoneCallback(pHddCtx->hHal, hdd_11d_scan_done);
 
