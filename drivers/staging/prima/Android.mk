@@ -33,7 +33,12 @@ else
     WLAN_BLD_DIR := vendor/qcom/opensource/wlan
 endif
 
-DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+# DLKM_DIR was moved for JELLY_BEAN (PLATFORM_SDK 16)
+ifeq ($(call is-platform-sdk-version-at-least,16),true)
+       DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+else
+       DLKM_DIR := build/dlkm
+endif
 
 ifeq ($(WLAN_PROPRIETARY),1)
 # For the proprietary driver the firmware files are handled here
@@ -83,8 +88,8 @@ PATCHLEVEL=$(shell grep -w "PATCHLEVEL =" $(TOP)/kernel/Makefile | sed 's/^PATCH
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(WLAN_CHIPSET)_wlan.ko
 LOCAL_MODULE_KBUILD_NAME  := wlan.ko
-LOCAL_MODULE_TAGS         := optional
-LOCAL_MODULE_DEBUG_ENABLE := false
+LOCAL_MODULE_TAGS         := debug
+LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(TARGET_OUT)/lib/modules/$(WLAN_CHIPSET)
 include $(DLKM_DIR)/AndroidKernelModule.mk
 ###########################################################

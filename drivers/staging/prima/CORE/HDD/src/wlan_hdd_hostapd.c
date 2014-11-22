@@ -106,12 +106,7 @@
  */
 #define WE_SAP_MAX_STA_INFO 0x7FF
 
-struct statsContext
-{
-   struct completion completion;
-   hdd_adapter_t *pAdapter;
-   unsigned int magic;
-};
+#define SAP_24GHZ_CH_COUNT (14) 
 
 #define SAP_MAX_GET_ASSOC_STAS_TIMEOUT    500
 /* Max possible supported rate count
@@ -612,9 +607,6 @@ typedef enum
    RATE_CFG_RATE_GI_LONG,
    RATE_CFG_RATE_GI_SHORT
 } rate_cfg_gi_t;
-#define SAP_24GHZ_CH_COUNT (14)
-
-#define MIN_MTU_SIZE 256     // Motorola, IKHSS7-19443, A21623, Hotspot MTU changes
 
 /*--------------------------------------------------------------------------- 
  *   Function definitions
@@ -713,12 +705,6 @@ int hdd_hostapd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 int hdd_hostapd_change_mtu(struct net_device *dev, int new_mtu)
 {
-//  Motorola, IKHSS7-19443, A21623, Hotspot MTU changes
-    if ( (new_mtu  < MIN_MTU_SIZE)  || (new_mtu > IEEE80211_MAX_DATA_LEN - 26) )
-        return EINVAL;
-
-    dev->mtu = new_mtu;
-//  End IKHSS7-19443
     return 0;
 }
 
@@ -749,7 +735,19 @@ int hdd_hostapd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
         goto exit;
     }
 
-    command = kmalloc(priv_data.total_len, GFP_KERNEL);
+    if (priv_data.total_len <= 0 ||
+        priv_data.total_len == INT_MAX)
+    {
+        /* below we allocate one more byte for command buffer.
+         * To avoid addition overflow total_len should be
+         * smaller than INT_MAX. */
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+           "%s: integer out of range\n", __func__);
+        ret = -EFAULT;
+        goto exit;
+    }
+
+    command = kmalloc((priv_data.total_len + 1), GFP_KERNEL);
     if (!command)
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -764,9 +762,11 @@ int hdd_hostapd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
         goto exit;
     }
 
+    command[priv_data.total_len] = '\0';
+
     if ((SIOCDEVPRIVATE + 1) == cmd)
     {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
            "***HOSTAPD*** : Received %s cmd from Wi-Fi GUI***", command);
 
         if(strncmp(command, "P2P_SET_NOA", 11) == 0 )   
@@ -1315,14 +1315,15 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             break;
 
         case eSAP_MAX_ASSOC_EXCEEDED:
-            /* Beging Motorola IKHSS7-18970 fpx478, 30/03/2012, nottification to MHS */
-            /* Redefining the Custom Message
-             * IW_CUSTOM_MAX will inform when STA is denied when assoc due to Maximum Mobile
-             * Hotspot connections reached. Please disconnect one or more devices to enable
-             * the new device connection, and we dont require the MAC address of the STA
-             */
-            snprintf(maxAssocExceededEvent, IW_CUSTOM_MAX, "eSAP_MAX_ASSOC_EXCEEDED");
-            /* END IKHSS7-18970 */
+            snprintf(maxAssocExceededEvent, IW_CUSTOM_MAX, "Peer %02x:%02x:%02x:%02x:%02x:%02x denied"
+                    " assoc due to Maximum Mobile Hotspot connections reached. Please disconnect"
+                    " one or more devices to enable the new device connection",
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[0],
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[1],
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[2],
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[3],
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[4],
+                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[5]);
             we_event = IWEVCUSTOM; /* Discovered a new node (AP mode). */
             wrqu.data.pointer = maxAssocExceededEvent;
             wrqu.data.length = strlen(maxAssocExceededEvent);
@@ -1968,7 +1969,7 @@ static iw_softap_setparam(struct net_device *dev,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
-    int *value = (int *)(wrqu->data.pointer);
+    int *value = (int *)extra;
     int sub_cmd = value[0];
     int set_value = value[1];
     eHalStatus status;
@@ -2151,7 +2152,7 @@ int iw_softap_modify_acl(struct net_device *dev, struct iw_request_info *info,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     v_CONTEXT_t pVosContext = (WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext; 
-    char *value = (char *)(wrqu->data.pointer);
+    v_BYTE_t *value = (v_BYTE_t*)extra;
     v_U8_t pPeerStaMac[VOS_MAC_ADDR_SIZE];
     int listType, cmd, i;
     int ret = 0; /* success */
@@ -2199,20 +2200,13 @@ static iw_softap_set_max_tx_power(struct net_device *dev,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
-    int cmd_len = wrqu->data.length;
-    int *value = (int *)kmalloc(cmd_len+1, GFP_KERNEL);
+    int *value = (int *)extra;
     int set_value;
     tSirMacAddr bssid = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
     tSirMacAddr selfMac = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
     if (NULL == value)
         return -ENOMEM;
-    if(copy_from_user((char *) value, (char*)(wrqu->data.pointer), cmd_len)) {
-        hddLog(VOS_TRACE_LEVEL_FATAL, "%s -- copy_from_user --data pointer failed! bailing",
-                __func__);
-        kfree(value);
-        return -EFAULT;
-    }
 
     /* Assign correct slef MAC address */
     vos_mem_copy(bssid, pHostapdAdapter->macAddressCurrent.bytes,
@@ -2221,7 +2215,6 @@ static iw_softap_set_max_tx_power(struct net_device *dev,
                  VOS_MAC_ADDR_SIZE);
 
     set_value = value[0];
-    kfree(value);
     if (eHAL_STATUS_SUCCESS != sme_SetMaxTxPower(hHal, bssid, selfMac, set_value))
     {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting maximum tx power failed",
@@ -2281,6 +2274,78 @@ static iw_softap_set_tx_power(struct net_device *dev,
         return -EIO;
     }
 
+    return 0;
+}
+
+/**---------------------------------------------------------------------------
+
+  \brief iw_softap_set_trafficmonitor() -
+   This function dynamically enable/disable traffic monitor functonality
+   the command iwpriv wlanX setTrafficMon <value>.
+
+  \param  - dev - Pointer to the net device.
+              - addr - Pointer to the sockaddr.
+  \return - 0 for success, non zero for failure
+
+  --------------------------------------------------------------------------*/
+
+static int iw_softap_set_trafficmonitor(struct net_device *dev,
+        struct iw_request_info *info,
+        union iwreq_data *wrqu, char *extra)
+{
+    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
+    int *isSetTrafficMon = (int *)wrqu->data.pointer;
+    hdd_context_t *pHddCtx;
+    int status;
+
+    if (NULL == pAdapter)
+    {
+        VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
+                   "%s: HDD adapter is Null", __func__);
+        return -ENODEV;
+    }
+
+    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+
+    status = wlan_hdd_validate_context(pHddCtx);
+
+    if (0 != status)
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "%s: HDD context is not valid", __func__);
+        return status;
+    }
+
+    hddLog(VOS_TRACE_LEVEL_INFO, "%s : ", __func__);
+
+    if (NULL == isSetTrafficMon)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
+                   "%s: Invalid SAP pointer from extra", __func__);
+        return -ENOMEM;
+    }
+
+    if (TRUE == *isSetTrafficMon)
+    {
+        pHddCtx->cfg_ini->enableTrafficMonitor= TRUE;
+        if (VOS_STATUS_SUCCESS != hdd_start_trafficMonitor(pAdapter))
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+                       "%s: failed to Start Traffic Monitor timer ", __func__ );
+            return -EIO;
+        }
+    }
+    else if (FALSE == *isSetTrafficMon)
+    {
+        pHddCtx->cfg_ini->enableTrafficMonitor= FALSE;
+        if (VOS_STATUS_SUCCESS != hdd_stop_trafficMonitor(pAdapter))
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+                       "%s: failed to Stop Traffic Monitor timer ", __func__ );
+            return -EIO;
+        }
+
+    }
     return 0;
 }
 
@@ -2348,7 +2413,7 @@ static iw_softap_disassoc_sta(struct net_device *dev,
     /* iwpriv tool or framework calls this ioctl with
      * data passed in extra (less than 16 octets);
      */
-    peerMacAddr = (v_U8_t *)(wrqu->data.pointer);
+    peerMacAddr = (v_U8_t *)(extra);
 
     hddLog(LOG1, "data %02x:%02x:%02x:%02x:%02x:%02x",
             peerMacAddr[0], peerMacAddr[1], peerMacAddr[2],
@@ -3136,6 +3201,18 @@ static int iw_get_ap_freq(struct net_device *dev, struct iw_request_info *info,
    return 0;
 }
 
+static int iw_get_mode(struct net_device *dev,
+        struct iw_request_info *info,
+        union iwreq_data *wrqu,
+        char *extra)
+{
+    int status = 0;
+
+    wrqu->mode = IW_MODE_MASTER;
+
+    return status;
+}
+
 static int iw_softap_setwpsie(struct net_device *dev,
         struct iw_request_info *info,
         union iwreq_data *wrqu, 
@@ -3648,13 +3725,26 @@ int iw_get_softap_linkspeed(struct net_device *dev,
        return valid;
    }
 
-   if ( hdd_string_to_hex ((char *)wrqu->data.pointer, wrqu->data.length, macAddress ) )
+   hddLog(VOS_TRACE_LEVEL_INFO, "%s wrqu->data.length= %d\n", __func__, wrqu->data.length);
+   status = hdd_string_to_hex ((char *)wrqu->data.pointer, wrqu->data.length, macAddress );
+
+   if (!VOS_IS_STATUS_SUCCESS(status ))
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL, FL("ERROR: Command not found"));
-      return -EINVAL;
+      hddLog(VOS_TRACE_LEVEL_ERROR, FL("String to Hex conversion Failed"));
    }
 
-   status = hdd_softap_GetStaId(pHostapdAdapter, (v_MACADDR_t *)macAddress, (void *)(&staId));
+   /* If no mac address is passed and/or its length is less than 17,
+    * link speed for first connected client will be returned.
+    */
+   if (!VOS_IS_STATUS_SUCCESS(status ) || wrqu->data.length < 17)
+   {
+      status = hdd_softap_GetConnectedStaId(pHostapdAdapter, (void *)(&staId));
+   }
+   else
+   {
+      status = hdd_softap_GetStaId(pHostapdAdapter,
+                               (v_MACADDR_t *)macAddress, (void *)(&staId));
+   }
 
    if (!VOS_IS_STATUS_SUCCESS(status))
    {
@@ -3709,7 +3799,7 @@ static const iw_handler      hostapd_handler[] =
    (iw_handler) NULL,           /* SIOCSIWFREQ */
    (iw_handler) iw_get_ap_freq,    /* SIOCGIWFREQ */
    (iw_handler) NULL,           /* SIOCSIWMODE */
-   (iw_handler) NULL,           /* SIOCGIWMODE */
+   (iw_handler) iw_get_mode,    /* SIOCGIWMODE */
    (iw_handler) NULL,           /* SIOCSIWSENS */
    (iw_handler) NULL,           /* SIOCGIWSENS */
    (iw_handler) NULL,           /* SIOCSIWRANGE */
@@ -3879,8 +3969,17 @@ static const struct iw_priv_args hostapd_private_args[] = {
         IW_PRIV_TYPE_INT| IW_PRIV_SIZE_FIXED | 1,
         0,
         "setTxMaxPower" },
-    { QCSAP_IOCTL_DATAPATH_SNAP_SHOT,
-      IW_PRIV_TYPE_NONE | IW_PRIV_TYPE_NONE, 0, "dataSnapshot" },
+
+    {   QCSAP_IOCTL_DATAPATH_SNAP_SHOT,
+        IW_PRIV_TYPE_NONE | IW_PRIV_TYPE_NONE,
+        0,
+        "dataSnapshot" },
+
+    /* handlers for main ioctl */
+    {   QCSAP_IOCTL_SET_TRAFFIC_MONITOR,
+        IW_PRIV_TYPE_INT| IW_PRIV_SIZE_FIXED | 1,
+        0,
+        "setTrafficMon" },
 };
 
 static const iw_handler hostapd_private[] = {
@@ -3907,6 +4006,7 @@ static const iw_handler hostapd_private[] = {
    [QCSAP_IOCTL_SET_TX_POWER - SIOCIWFIRSTPRIV]   = iw_softap_set_tx_power,
    [QCSAP_IOCTL_SET_MAX_TX_POWER - SIOCIWFIRSTPRIV]   = iw_softap_set_max_tx_power,
    [QCSAP_IOCTL_DATAPATH_SNAP_SHOT - SIOCIWFIRSTPRIV]  =   iw_display_data_path_snapshot,
+   [QCSAP_IOCTL_SET_TRAFFIC_MONITOR - SIOCIWFIRSTPRIV]  =  iw_softap_set_trafficmonitor,
 };
 const struct iw_handler_def hostapd_handler_def = {
    .num_standard     = sizeof(hostapd_handler) / sizeof(hostapd_handler[0]),
@@ -3997,8 +4097,24 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     {
        hddLog(VOS_TRACE_LEVEL_FATAL, "%s: hdd_softap_init_tx_rx failed", __func__);
     }
-    
+
+    status = hdd_wmm_adapter_init( pAdapter );
+    if (!VOS_IS_STATUS_SUCCESS(status))
+    {
+       hddLog(VOS_TRACE_LEVEL_ERROR,
+             "hdd_wmm_adapter_init() failed with status code %08d [x%08lx]",
+                             status, status );
+       goto error_wmm_init;
+    }
+
+    set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
+
     wlan_hdd_set_monitor_tx_adapter( WLAN_HDD_GET_CTX(pAdapter), pAdapter );
+
+    return status;
+
+error_wmm_init:
+    hdd_softap_deinit_tx_rx( pAdapter );
     EXIT();
     return status;
 }

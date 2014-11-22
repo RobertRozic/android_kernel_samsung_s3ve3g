@@ -1,5 +1,53 @@
-MODNAME := wlan
-WLAN_ROOT := drivers/staging/prima
+# We can build either as part of a standalone Kernel build or part
+# of an Android build.  Determine which mechanism is being used
+ifeq ($(MODNAME),)
+	KERNEL_BUILD := 1
+else
+	KERNEL_BUILD := 0
+endif
+
+ifeq ($(KERNEL_BUILD),1)
+	# These are provided in Android-based builds
+	# Need to explicitly define for Kernel-based builds
+	MODNAME := wlan
+	WLAN_ROOT := drivers/staging/prima
+endif
+
+ifeq ($(KERNEL_BUILD), 0)
+	# These are configurable via Kconfig for kernel-based builds
+	# Need to explicitly configure for Android-based builds
+
+	#Flag to enable BlueTooth AMP feature
+	CONFIG_PRIMA_WLAN_BTAMP := n
+
+	#Flag to enable Legacy Fast Roaming(LFR)
+	CONFIG_PRIMA_WLAN_LFR := y
+
+	#JB kernel has PMKSA patches, hence enabling this flag
+	CONFIG_PRIMA_WLAN_OKC := y
+
+	# JB kernel has CPU enablement patches, so enable
+	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
+
+	#Flag to enable TDLS feature
+	CONFIG_QCOM_TDLS := y
+
+	#Flag to enable Fast Transition (11r) feature
+	CONFIG_QCOM_VOWIFI_11R := y
+
+	#Flag to enable Protected Managment Frames (11w) feature
+	ifneq ($(CONFIG_PRONTO_WLAN),)
+	CONFIG_WLAN_FEATURE_11W := y
+	endif
+
+	#Flag to enable new Linux Regulatory implementation
+	CONFIG_ENABLE_LINUX_REG := y
+
+endif
+
+# To enable CCX upload, dependent config
+# CONFIG_QCOM_CCX must be enabled.
+CONFIG_QCOM_CCX_UPLOAD := n
 
 # Feature flags which are not (currently) configurable via Kconfig
 
@@ -163,7 +211,9 @@ MAC_LIM_OBJS := $(MAC_SRC_DIR)/pe/lim/limAIDmgmt.o \
 		$(MAC_SRC_DIR)/pe/lim/limUtils.o
 
 ifeq ($(CONFIG_QCOM_CCX),y)
+ifneq ($(CONFIG_QCOM_CCX_UPLOAD),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/limProcessCcxFrame.o
+endif
 endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
@@ -222,7 +272,9 @@ SME_CSR_OBJS := $(SME_SRC_DIR)/csr/csrApiRoam.o \
 		$(SME_SRC_DIR)/csr/csrUtil.o
 
 ifeq ($(CONFIG_QCOM_CCX),y)
+ifneq ($(CONFIG_QCOM_CCX_UPLOAD),y)
 SME_CSR_OBJS += $(SME_SRC_DIR)/csr/csrCcx.o
+endif
 endif
 
 ifeq ($(CONFIG_QCOM_TDLS),y)
@@ -236,7 +288,8 @@ SME_PMC_OBJS := $(SME_SRC_DIR)/pmc/pmcApi.o \
 SME_QOS_OBJS := $(SME_SRC_DIR)/QoS/sme_Qos.o
 
 SME_CMN_OBJS := $(SME_SRC_DIR)/sme_common/sme_Api.o \
-		$(SME_SRC_DIR)/sme_common/sme_FTApi.o
+		$(SME_SRC_DIR)/sme_common/sme_FTApi.o \
+		$(SME_SRC_DIR)/sme_common/sme_Trace.o
 
 SME_BTC_OBJS := $(SME_SRC_DIR)/btc/btcApi.o
 
@@ -301,10 +354,6 @@ SYS_OBJS :=	$(SYS_COMMON_SRC_DIR)/wlan_qct_sys.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/parserApi.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utilsApi.o \
 		$(SYS_LEGACY_SRC_DIR)/utils/src/utilsParser.o
-
-ifeq ($(CONFIG_QCOM_CCX),y)
-SYS_OBJS += $(SYS_LEGACY_SRC_DIR)/utils/src/limCcxparserApi.o
-endif
 
 ############ TL ############
 TL_DIR :=	CORE/TL
@@ -487,8 +536,8 @@ CDEFINES :=	-DANI_BUS_TYPE_PLATFORM=1 \
 		-DWLAN_FEATURE_ROAM_SCAN_OFFLOAD \
 		-DWLAN_FEATURE_GTK_OFFLOAD \
 		-DWLAN_WAKEUP_EVENTS \
-                -DWLAN_NV_OTA_UPGRADE \
 	        -DWLAN_KD_READY_NOTIFIER \
+		-DFEATURE_WLAN_BATCH_SCAN \
 		-DFEATURE_WLAN_LPHB
 
 ifneq ($(CONFIG_PRONTO_WLAN),)
@@ -500,6 +549,7 @@ ifeq ($(BUILD_DEBUG_VERSION),1)
 CDEFINES +=	-DWLAN_DEBUG \
 		-DTRACE_RECORD \
 		-DLIM_TRACE_RECORD \
+		-DSME_TRACE_RECORD \
 		-DPE_DEBUG_LOGW \
 		-DPE_DEBUG_LOGE \
 		-DDEBUG
@@ -521,6 +571,9 @@ endif
 
 ifeq ($(CONFIG_QCOM_CCX),y)
 CDEFINES += -DFEATURE_WLAN_CCX
+ifeq ($(CONFIG_QCOM_CCX_UPLOAD),y)
+CDEFINES += -DFEATURE_WLAN_CCX_UPLOAD
+endif
 endif
 
 #normally, TDLS negative behavior is not needed
@@ -543,9 +596,6 @@ endif
 
 ifeq ($(CONFIG_PRIMA_WLAN_LFR),y)
 CDEFINES += -DFEATURE_WLAN_LFR
-#Begin fjdw67 Motorola, IKJB42MAIN-6385 - LFR roaming instrumentation
-CDEFINES += -DFEATURE_WLAN_LFR_METRICS
-#End IKJB42MAIN-6385
 endif
 
 ifeq ($(CONFIG_PRIMA_WLAN_OKC),y)
@@ -577,7 +627,17 @@ ifeq ($(RE_ENABLE_WIFI_ON_WDI_TIMEOUT),1)
 CDEFINES += -DWDI_RE_ENABLE_WIFI_ON_WDI_TIMEOUT
 endif
 
+ifeq ($(KERNEL_BUILD),1)
 CDEFINES += -DWLAN_OPEN_SOURCE
+endif
+
+ifeq ($(findstring opensource, $(WLAN_ROOT)), opensource)
+CDEFINES += -DWLAN_OPEN_SOURCE
+endif
+
+ifeq ($(CONFIG_ENABLE_LINUX_REG), y)
+CDEFINES += -DCONFIG_ENABLE_LINUX_REG
+endif
 
 # Fix build for GCC 4.7
 EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
