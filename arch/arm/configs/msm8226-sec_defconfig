@@ -581,6 +581,14 @@ CONFIG_EXTEND_SERIAL_NUM_16=y
 # CONFIG_SEC_RESTRICT_FORK is not set
 # CONFIG_SEC_RESTRICT_ROOTING_LOG is not set
 
+#
+# IO Schedulers
+#
+# CONFIG_IOSCHED_TEST is not set
+# CONFIG_DEFAULT_CFQ is not set
+CONFIG_DEFAULT_NOOP=y
+CONFIG_DEFAULT_IOSCHED="noop"
+
 # Qualcomm Atheros Prima WLAN module
 #
 # CONFIG_PRIMA_WLAN is not set
